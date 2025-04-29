@@ -288,7 +288,7 @@ fn quote_for_test(
 
             #[test]
             fn test_abi_digest() {
-                ::solana_logger::setup();
+                ::agave_logger::setup();
                 let mut digester = ::solana_frozen_abi::abi_digester::AbiDigester::create();
                 let example = <#type_name>::example();
                 let result = <_>::visit_for_abi(&&example, &mut digester);

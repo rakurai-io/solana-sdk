@@ -53,9 +53,9 @@ bitflags! {
         const REPAIR         = 0b0000_0100;
         const SIMPLE_VOTE_TX = 0b0000_1000;
         // Previously used - this can now be re-used for something else.
-        const UNUSED_0  = 0b0001_0000;
+        const DELAY  = 0b0001_0000;
         // Previously used - this can now be re-used for something else.
-        const UNUSED_1 = 0b0010_0000;
+        const DUPLICATE = 0b0010_0000;
         /// For tracking performance
         const PERF_TRACK_PACKET  = 0b0100_0000;
         /// For marking packets from staked nodes
@@ -263,6 +263,26 @@ impl Meta {
     #[inline]
     pub fn set_discard(&mut self, discard: bool) {
         self.flags.set(PacketFlags::DISCARD, discard);
+    }
+
+    #[inline]
+    pub fn bypass_delay(&mut self, delay: bool) {
+        self.flags.set(PacketFlags::DELAY, delay);
+    }
+
+    #[inline]
+    pub fn should_not_delay(&self) -> bool {
+        self.flags.contains(PacketFlags::DELAY)
+    }
+
+    #[inline]
+    pub fn set_duplicate(&mut self, duplicate: bool) {
+        self.flags.set(PacketFlags::DUPLICATE, duplicate);
+    }
+
+    #[inline]
+    pub fn is_duplicate(&self) -> bool {
+        self.flags.contains(PacketFlags::DUPLICATE)
     }
 
     #[inline]

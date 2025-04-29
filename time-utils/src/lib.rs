@@ -38,6 +38,7 @@ pub fn slot_duration_from_slots_per_year(slots_per_year: f64) -> Duration {
 }
 
 #[derive(Debug, Default)]
+#[repr(C)]
 pub struct AtomicInterval {
     last_update: AtomicU64,
 }

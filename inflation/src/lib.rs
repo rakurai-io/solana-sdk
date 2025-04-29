@@ -7,6 +7,7 @@ use serde_derive::{Deserialize, Serialize};
 #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 #[derive(PartialEq, Clone, Debug, Copy)]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
+#[repr(C)]
 pub struct Inflation {
     /// Initial inflation percentage, from time=0
     pub initial: f64,

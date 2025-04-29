@@ -53,6 +53,7 @@ pub const MINIMUM_SLOTS_PER_EPOCH: u64 = 32;
     serde(rename_all = "camelCase")
 )]
 #[derive(Debug, CloneZeroed, PartialEq, Eq)]
+#[repr(C)]
 pub struct EpochSchedule {
     /// The maximum number of slots in each epoch.
     pub slots_per_epoch: u64,
