@@ -133,6 +133,7 @@ impl Serialize for AccountSharedData {
     serde(from = "Account")
 )]
 #[derive(PartialEq, Eq, Clone, Default)]
+#[repr(C)]
 pub struct AccountSharedData {
     /// lamports in the account
     lamports: u64,

@@ -75,6 +75,7 @@ fn compile_instructions(ixs: &[Instruction], keys: &[Pubkey]) -> Vec<CompiledIns
     serde(rename_all = "camelCase")
 )]
 #[derive(Default, Debug, PartialEq, Eq, Clone)]
+#[repr(C)]
 pub struct Message {
     /// The message header, identifying signed and read-only `account_keys`.
     // NOTE: Serialization-related changes must be paired with the direct read at sigverify.

@@ -18,6 +18,7 @@ use {solana_pubkey::Pubkey, solana_sanitize::Sanitize};
     serde(rename_all = "camelCase")
 )]
 #[derive(Debug, PartialEq, Eq, Clone)]
+#[repr(C)]
 pub struct CompiledInstruction {
     /// Index into the transaction keys array indicating the program account that executes this instruction.
     pub program_id_index: u8,

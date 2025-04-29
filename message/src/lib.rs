@@ -107,6 +107,7 @@ pub const MESSAGE_HEADER_LENGTH: usize = 3;
     serde(rename_all = "camelCase")
 )]
 #[derive(Default, Debug, PartialEq, Eq, Clone, Copy)]
+#[repr(C)]
 pub struct MessageHeader {
     /// The number of signatures required for this message to be considered
     /// valid. The signers of those signatures must match the first

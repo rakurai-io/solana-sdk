@@ -9,6 +9,7 @@
     derive(serde_derive::Deserialize, serde_derive::Serialize)
 )]
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[repr(C)]
 pub struct HardForks {
     hard_forks: Vec<(u64, usize)>,
 }

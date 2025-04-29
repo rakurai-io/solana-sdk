@@ -49,6 +49,7 @@ impl TransactionVersion {
 #[cfg_attr(feature = "frozen-abi", derive(solana_frozen_abi_macro::AbiExample))]
 #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 #[derive(Debug, PartialEq, Default, Eq, Clone)]
+#[repr(C)]
 pub struct VersionedTransaction {
     /// List of signatures
     #[cfg_attr(feature = "serde", serde(with = "short_vec"))]

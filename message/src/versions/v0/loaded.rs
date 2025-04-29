@@ -9,6 +9,7 @@ use {
 
 /// Combination of a version #0 message and its loaded addresses
 #[derive(Debug, Clone, Eq, PartialEq)]
+#[repr(C)]
 pub struct LoadedMessage<'a> {
     /// Message which loaded a collection of lookup table addresses
     pub message: Cow<'a, v0::Message>,

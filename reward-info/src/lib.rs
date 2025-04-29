@@ -8,6 +8,7 @@ use std::fmt;
 #[cfg_attr(feature = "frozen-abi", derive(AbiExample, AbiEnumVisitor))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[repr(C)]
 pub enum RewardType {
     Fee,
     Rent,
@@ -33,6 +34,7 @@ impl fmt::Display for RewardType {
 #[cfg_attr(feature = "frozen-abi", derive(AbiExample))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[repr(C)]
 pub struct RewardInfo {
     pub reward_type: RewardType,
     /// Reward amount
