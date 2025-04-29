@@ -419,6 +419,7 @@ impl<I> CircBuf<I> {
 #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 #[derive(Debug, Default, PartialEq, Eq, Clone)]
 #[cfg_attr(feature = "dev-context-only-utils", derive(Arbitrary))]
+#[repr(C)]
 pub struct VoteState {
     /// the node that votes in this account
     pub node_pubkey: Pubkey,

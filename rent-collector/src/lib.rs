@@ -18,6 +18,7 @@ use {
     derive(serde_derive::Deserialize, serde_derive::Serialize)
 )]
 #[derive(Clone, Debug, PartialEq)]
+#[repr(C)]
 pub struct RentCollector {
     pub epoch: Epoch,
     pub epoch_schedule: EpochSchedule,

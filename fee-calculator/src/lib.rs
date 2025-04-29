@@ -38,6 +38,7 @@ impl FeeCalculator {
 )]
 #[derive(PartialEq, Eq, Clone, Debug)]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
+#[repr(C)]
 pub struct FeeRateGovernor {
     // The current cost of a signature  This amount may increase/decrease over time based on
     // cluster processing load.
