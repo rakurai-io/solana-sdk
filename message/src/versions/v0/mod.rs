@@ -39,6 +39,7 @@ mod loaded;
     serde(rename_all = "camelCase")
 )]
 #[derive(Default, Debug, PartialEq, Eq, Clone)]
+#[repr(C)]
 pub struct MessageAddressTableLookup {
     /// Address lookup table account key
     pub account_key: Pubkey,

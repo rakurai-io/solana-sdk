@@ -11,6 +11,7 @@ use {solana_hash::Hash, std::str::FromStr};
     derive(serde_derive::Deserialize, serde_derive::Serialize)
 )]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(C)]
 pub enum ClusterType {
     Testnet,
     MainnetBeta,

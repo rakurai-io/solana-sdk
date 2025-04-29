@@ -42,6 +42,7 @@ pub const MESSAGE_VERSION_PREFIX: u8 = 0x80;
     derive(AbiEnumVisitor, AbiExample)
 )]
 #[derive(Debug, PartialEq, Eq, Clone)]
+#[repr(C)]
 pub enum VersionedMessage {
     Legacy(LegacyMessage),
     V0(v0::Message),

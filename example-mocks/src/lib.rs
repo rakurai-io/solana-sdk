@@ -219,6 +219,7 @@ pub mod solana_transaction {
     }
 
     #[derive(Serialize)]
+    #[repr(C)]
     pub struct Transaction {
         pub message: Message,
     }
