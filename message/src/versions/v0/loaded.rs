@@ -24,6 +24,7 @@ pub struct LoadedMessage<'a> {
 /// by readonly and writable.
 #[derive(Clone, Default, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
+#[repr(C)]
 pub struct LoadedAddresses {
     /// List of addresses for writable loaded accounts
     pub writable: Vec<Pubkey>,

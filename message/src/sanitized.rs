@@ -28,6 +28,7 @@ static_assertions::const_assert_eq!(
 );
 
 #[derive(Debug, Clone, Eq, PartialEq)]
+#[repr(C)]
 pub struct LegacyMessage<'a> {
     /// Legacy message
     pub message: Cow<'a, legacy::Message>,
@@ -79,6 +80,7 @@ impl LegacyMessage<'_> {
 
 /// Sanitized message of a transaction.
 #[derive(Debug, Clone, Eq, PartialEq)]
+#[repr(C)]
 pub enum SanitizedMessage {
     /// Sanitized legacy message
     Legacy(LegacyMessage<'static>),
@@ -428,6 +430,7 @@ impl SanitizedMessage {
 /// Transaction signature details including the number of transaction signatures
 /// and precompile signatures.
 #[derive(Clone, Debug, Default)]
+#[repr(C)]
 pub struct TransactionSignatureDetails {
     num_transaction_signatures: u64,
     num_secp256k1_instruction_signatures: u64,

@@ -65,6 +65,7 @@ pub struct MessageAddressTableLookup {
     serde(rename_all = "camelCase")
 )]
 #[derive(Default, Debug, PartialEq, Eq, Clone)]
+#[repr(C)]
 pub struct Message {
     /// The message header, identifying signed and read-only `account_keys`.
     /// Header values only describe static `account_keys`, they do not describe
