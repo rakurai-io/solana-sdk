@@ -53,7 +53,7 @@ bitflags! {
         const REPAIR         = 0b0000_0100;
         const SIMPLE_VOTE_TX = 0b0000_1000;
         // Previously used - this can now be re-used for something else.
-        const UNUSED_0  = 0b0001_0000;
+        const DELAY  = 0b0001_0000;
         // Previously used - this can now be re-used for something else.
         const UNUSED_1 = 0b0010_0000;
         /// For tracking performance
@@ -263,6 +263,16 @@ impl Meta {
     #[inline]
     pub fn set_discard(&mut self, discard: bool) {
         self.flags.set(PacketFlags::DISCARD, discard);
+    }
+
+    #[inline]
+    pub fn set_delay(&mut self, delay: bool) {
+        self.flags.set(PacketFlags::DELAY, delay);
+    }
+
+    #[inline]
+    pub fn should_delay(&self) -> bool {
+        self.flags.contains(PacketFlags::DELAY)
     }
 
     #[inline]
