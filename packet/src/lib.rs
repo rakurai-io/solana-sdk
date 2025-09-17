@@ -55,7 +55,7 @@ bitflags! {
         // Previously used - this can now be re-used for something else.
         const DELAY  = 0b0001_0000;
         // Previously used - this can now be re-used for something else.
-        const UNUSED_1 = 0b0010_0000;
+        const DUPLICATE = 0b0010_0000;
         /// For tracking performance
         const PERF_TRACK_PACKET  = 0b0100_0000;
         /// For marking packets from staked nodes
@@ -273,6 +273,16 @@ impl Meta {
     #[inline]
     pub fn should_delay(&self) -> bool {
         self.flags.contains(PacketFlags::DELAY)
+    }
+
+    #[inline]
+    pub fn set_duplicate(&mut self, duplicate: bool) {
+        self.flags.set(PacketFlags::DUPLICATE, duplicate);
+    }
+
+    #[inline]
+    pub fn is_duplicate(&self) -> bool {
+        self.flags.contains(PacketFlags::DUPLICATE)
     }
 
     #[inline]
