@@ -266,12 +266,12 @@ impl Meta {
     }
 
     #[inline]
-    pub fn set_delay(&mut self, delay: bool) {
+    pub fn bypass_delay(&mut self, delay: bool) {
         self.flags.set(PacketFlags::DELAY, delay);
     }
 
     #[inline]
-    pub fn should_delay(&self) -> bool {
+    pub fn should_not_delay(&self) -> bool {
         self.flags.contains(PacketFlags::DELAY)
     }
 
