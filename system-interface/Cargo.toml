@@ -23,7 +23,7 @@ bincode = ["dep:solana-instruction", "serde"]
 frozen-abi = [
     "dep:solana-frozen-abi",
     "dep:solana-frozen-abi-macro",
-    "dep:solana-logger",
+    "dep:agave-logger",
     "serde",
     "solana-pubkey/frozen-abi",
     "solana-pubkey/std",
@@ -37,7 +37,7 @@ serde_derive = { workspace = true, optional = true }
 solana-frozen-abi = { workspace = true, features = ["frozen-abi"], optional = true }
 solana-frozen-abi-macro = { workspace = true, features = ["frozen-abi"], optional = true }
 solana-instruction = { workspace = true, features = ["bincode", "std"], optional = true }
-solana-logger = { workspace = true, optional = true }
+agave-logger = { workspace = true, optional = true }
 solana-msg = { workspace = true }
 solana-program-error = { workspace = true }
 solana-pubkey = { workspace = true, default-features = false }
