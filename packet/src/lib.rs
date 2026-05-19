@@ -11,6 +11,7 @@ use {
 };
 use {
     bitflags::bitflags,
+    solana_pubkey::Pubkey,
     std::{
         fmt,
         net::{IpAddr, Ipv4Addr, SocketAddr},
@@ -72,6 +73,8 @@ pub struct Meta {
     pub addr: IpAddr,
     pub port: u16,
     pub flags: PacketFlags,
+    /// TLS client identity for QUIC-sourced packets; unset for UDP / anonymous peers.
+    pub remote_pubkey: Option<Pubkey>,
 }
 
 #[cfg(feature = "frozen-abi")]
@@ -256,6 +259,16 @@ impl Meta {
     }
 
     #[inline]
+    pub fn set_remote_pubkey(&mut self, pubkey: Pubkey) {
+        self.remote_pubkey = Some(pubkey);
+    }
+
+    #[inline]
+    pub fn remote_pubkey(&self) -> Option<Pubkey> {
+        self.remote_pubkey
+    }
+
+    #[inline]
     pub fn discard(&self) -> bool {
         self.flags.contains(PacketFlags::DISCARD)
     }
@@ -329,6 +342,7 @@ impl Default for Meta {
             addr: IpAddr::V4(Ipv4Addr::UNSPECIFIED),
             port: 0,
             flags: PacketFlags::empty(),
+            remote_pubkey: None,
         }
     }
 }

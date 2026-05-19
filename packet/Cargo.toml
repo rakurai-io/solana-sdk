@@ -2,7 +2,7 @@
 name = "solana-packet"
 description = "The definition of a Solana network packet."
 documentation = "https://docs.rs/solana-packet"
-version = "3.0.0"
+version = "4.0.0"
 authors = { workspace = true }
 repository = { workspace = true }
 homepage = { workspace = true }
@@ -23,8 +23,13 @@ serde = [
     "dep:serde",
     "dep:serde_derive",
     "dep:serde_with",
+    "solana-pubkey/serde",
 ]
-frozen-abi = ["dep:solana-frozen-abi", "dep:solana-frozen-abi-macro"]
+frozen-abi = [
+    "dep:solana-frozen-abi",
+    "dep:solana-frozen-abi-macro",
+    "solana-pubkey/frozen-abi",
+]
 
 [dependencies]
 bincode = { workspace = true, optional = true }
@@ -35,6 +40,8 @@ serde_derive = { workspace = true, optional = true }
 serde_with = { workspace = true, optional = true, features = ["macros"] }
 solana-frozen-abi = { workspace = true, optional = true, features = ["frozen-abi"] }
 solana-frozen-abi-macro = { workspace = true, optional = true, features = ["frozen-abi"] }
+# Match Agave workspace (~4.1) so QUIC callers share the same `Pubkey` as streamer/core.
+solana-pubkey = { version = "~4.1.0", default-features = false }
 
 [dev-dependencies]
 solana-packet = { path = ".", features = ["dev-context-only-utils"] }
