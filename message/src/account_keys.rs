@@ -33,7 +33,7 @@ impl<'a> AccountKeys<'a> {
     /// affects how account indexes from compiled instructions are resolved and
     /// so should not be changed.
     #[inline]
-    fn key_segment_iter(&self) -> impl Iterator<Item = &'a [Pubkey]> + Clone {
+    fn key_segment_iter(&self) -> impl Iterator<Item = &'a [Pubkey]> + Clone + use<'a> {
         if let Some(dynamic_keys) = self.dynamic_keys {
             [
                 self.static_keys,
@@ -80,7 +80,7 @@ impl<'a> AccountKeys<'a> {
 
     /// Iterator for the addresses of the loaded accounts for a message
     #[inline]
-    pub fn iter(&self) -> impl Iterator<Item = &'a Pubkey> + Clone {
+    pub fn iter(&self) -> impl Iterator<Item = &'a Pubkey> + Clone + use<'a> {
         self.key_segment_iter().flatten()
     }
 

@@ -25,26 +25,22 @@ serde = [
     "dep:serde_with",
     "solana-pubkey/serde",
 ]
-frozen-abi = [
-    "dep:solana-frozen-abi",
-    "dep:solana-frozen-abi-macro",
-    "solana-pubkey/frozen-abi",
-]
+frozen-abi = ["dep:solana-frozen-abi", "dep:solana-frozen-abi-macro"]
 
 [dependencies]
 bincode = { workspace = true, optional = true }
 bitflags = { workspace = true }
-cfg_eval = { version = "0.1.2", optional = true }
+cfg_eval = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
 serde_derive = { workspace = true, optional = true }
 serde_with = { workspace = true, optional = true, features = ["macros"] }
 solana-frozen-abi = { workspace = true, optional = true, features = ["frozen-abi"] }
 solana-frozen-abi-macro = { workspace = true, optional = true, features = ["frozen-abi"] }
-# Match Agave workspace (~4.1) so QUIC callers share the same `Pubkey` as streamer/core.
-solana-pubkey = { version = "=4.2.0", default-features = false }
+solana-pubkey = { workspace = true }
 
 [dev-dependencies]
 solana-packet = { path = ".", features = ["dev-context-only-utils"] }
+solana-pubkey = { workspace = true, features = ["std"] }
 static_assertions = { workspace = true }
 
 [lints]
