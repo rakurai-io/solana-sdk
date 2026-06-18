@@ -1,6 +1,6 @@
 //! The definition of a Solana network packet.
 #![cfg_attr(feature = "frozen-abi", feature(min_specialization))]
-#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 #[cfg(feature = "frozen-abi")]
 use solana_frozen_abi_macro::AbiExample;
@@ -11,6 +11,7 @@ use {
 };
 use {
     bitflags::bitflags,
+    solana_pubkey::Pubkey,
     std::{
         fmt,
         net::{IpAddr, Ipv4Addr, SocketAddr},
@@ -72,6 +73,7 @@ pub struct Meta {
     pub addr: IpAddr,
     pub port: u16,
     pub flags: PacketFlags,
+    remote_pubkey: Pubkey,
 }
 
 #[cfg(feature = "frozen-abi")]
@@ -241,6 +243,22 @@ impl PartialEq for Packet {
 }
 
 impl Meta {
+    pub fn new(
+        size: usize,
+        addr: IpAddr,
+        port: u16,
+        flags: PacketFlags,
+        remote_pubkey: Option<Pubkey>,
+    ) -> Self {
+        Self {
+            size,
+            addr,
+            port,
+            flags,
+            remote_pubkey: remote_pubkey.unwrap_or_default(),
+        }
+    }
+
     pub fn socket_addr(&self) -> SocketAddr {
         SocketAddr::new(self.addr, self.port)
     }
@@ -320,6 +338,21 @@ impl Meta {
     pub fn is_from_staked_node(&self) -> bool {
         self.flags.contains(PacketFlags::FROM_STAKED_NODE)
     }
+
+    #[inline]
+    pub fn remote_pubkey(&self) -> Option<Pubkey> {
+        if self.remote_pubkey == Pubkey::default() {
+            None
+        } else {
+            Some(self.remote_pubkey)
+        }
+    }
+
+    /// Sets the remote pubkey. Use Pubkey::default() to clear.
+    #[inline]
+    pub fn set_remote_pubkey(&mut self, pubkey: Pubkey) {
+        self.remote_pubkey = pubkey;
+    }
 }
 
 impl Default for Meta {
@@ -329,6 +362,7 @@ impl Default for Meta {
             addr: IpAddr::V4(Ipv4Addr::UNSPECIFIED),
             port: 0,
             flags: PacketFlags::empty(),
+            remote_pubkey: Pubkey::default(),
         }
     }
 }
@@ -374,5 +408,38 @@ mod tests {
                 .map_err(|e| e.to_string()),
             Err("the size limit has been reached".to_string()),
         );
+    }
+
+    #[test]
+    fn test_remote_pubkey() {
+        let mut meta = Meta::default();
+        assert!(meta.remote_pubkey().is_none());
+        let pubkey = Pubkey::new_unique();
+        meta.set_remote_pubkey(pubkey);
+        assert_eq!(meta.remote_pubkey(), Some(pubkey));
+        let pubkey = Pubkey::default();
+        meta.set_remote_pubkey(pubkey);
+        assert!(meta.remote_pubkey().is_none());
+    }
+
+    #[test]
+    fn test_meta_new() {
+        let size = 1024;
+        let addr = IpAddr::V4(Ipv4Addr::new(192, 168, 1, 1));
+        let port = 8080;
+        let flags = PacketFlags::FROM_STAKED_NODE | PacketFlags::REPAIR;
+        let pubkey = Pubkey::new_unique();
+
+        let meta = Meta::new(size, addr, port, flags, Some(pubkey));
+
+        assert_eq!(meta.size, size);
+        assert_eq!(meta.addr, addr);
+        assert_eq!(meta.port, port);
+        assert_eq!(meta.flags, flags);
+        assert_eq!(meta.remote_pubkey, pubkey);
+        assert_eq!(meta.remote_pubkey(), Some(pubkey));
+        let meta = Meta::new(size, addr, port, flags, None);
+        assert_eq!(meta.remote_pubkey, Pubkey::default());
+        assert_eq!(meta.remote_pubkey(), None);
     }
 }

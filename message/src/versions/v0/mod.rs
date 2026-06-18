@@ -20,12 +20,17 @@ use {
         compiled_keys::{CompileError, CompiledKeys},
         AccountKeys, AddressLookupTableAccount, MessageHeader,
     },
+    solana_address::Address,
     solana_hash::Hash,
     solana_instruction::Instruction,
-    solana_pubkey::Pubkey,
     solana_sanitize::SanitizeError,
     solana_sdk_ids::bpf_loader_upgradeable,
     std::collections::HashSet,
+};
+#[cfg(feature = "wincode")]
+use {
+    solana_short_vec::ShortU16,
+    wincode::{containers, SchemaRead, SchemaWrite},
 };
 
 mod loaded;
@@ -38,16 +43,19 @@ mod loaded;
     derive(Deserialize, Serialize),
     serde(rename_all = "camelCase")
 )]
+#[cfg_attr(feature = "wincode", derive(SchemaWrite, SchemaRead))]
 #[derive(Default, Debug, PartialEq, Eq, Clone)]
 #[repr(C)]
 pub struct MessageAddressTableLookup {
     /// Address lookup table account key
-    pub account_key: Pubkey,
+    pub account_key: Address,
     /// List of indexes used to load writable account addresses
     #[cfg_attr(feature = "serde", serde(with = "solana_short_vec"))]
+    #[cfg_attr(feature = "wincode", wincode(with = "containers::Vec<_, ShortU16>"))]
     pub writable_indexes: Vec<u8>,
     /// List of indexes used to load readonly account addresses
     #[cfg_attr(feature = "serde", serde(with = "solana_short_vec"))]
+    #[cfg_attr(feature = "wincode", wincode(with = "containers::Vec<_, ShortU16>"))]
     pub readonly_indexes: Vec<u8>,
 }
 
@@ -64,6 +72,7 @@ pub struct MessageAddressTableLookup {
     derive(Deserialize, Serialize),
     serde(rename_all = "camelCase")
 )]
+#[cfg_attr(feature = "wincode", derive(SchemaWrite, SchemaRead))]
 #[derive(Default, Debug, PartialEq, Eq, Clone)]
 pub struct Message {
     /// The message header, identifying signed and read-only `account_keys`.
@@ -73,7 +82,8 @@ pub struct Message {
 
     /// List of accounts loaded by this transaction.
     #[cfg_attr(feature = "serde", serde(with = "solana_short_vec"))]
-    pub account_keys: Vec<Pubkey>,
+    #[cfg_attr(feature = "wincode", wincode(with = "containers::Vec<_, ShortU16>"))]
+    pub account_keys: Vec<Address>,
 
     /// The blockhash of a recent block.
     pub recent_blockhash: Hash,
@@ -92,11 +102,13 @@ pub struct Message {
     ///   2) ordered list of keys loaded from `writable` lookup table indexes
     ///   3) ordered list of keys loaded from `readable` lookup table indexes
     #[cfg_attr(feature = "serde", serde(with = "solana_short_vec"))]
+    #[cfg_attr(feature = "wincode", wincode(with = "containers::Vec<_, ShortU16>"))]
     pub instructions: Vec<CompiledInstruction>,
 
     /// List of address table lookups used to load additional accounts
     /// for this transaction.
     #[cfg_attr(feature = "serde", serde(with = "solana_short_vec"))]
+    #[cfg_attr(feature = "wincode", wincode(with = "containers::Vec<_, ShortU16>"))]
     pub address_table_lookups: Vec<MessageAddressTableLookup>,
 }
 
@@ -202,7 +214,6 @@ impl Message {
     /// # use solana_example_mocks::{
     /// #     solana_rpc_client,
     /// #     solana_account,
-    /// #     solana_transaction,
     /// #     solana_signer,
     /// #     solana_keypair,
     /// # };
@@ -213,15 +224,34 @@ impl Message {
     /// use solana_instruction::{AccountMeta, Instruction};
     /// use solana_keypair::Keypair;
     /// use solana_message::{AddressLookupTableAccount, VersionedMessage, v0};
-    /// use solana_pubkey::Pubkey;
+    /// use solana_address::Address;
     /// use solana_rpc_client::rpc_client::RpcClient;
     /// use solana_signer::Signer;
+    /// # mod solana_transaction {
+    /// #     pub mod versioned {
+    /// #         use solana_example_mocks::{solana_keypair::Keypair, solana_signer::SignerError};
+    /// #         use solana_message::VersionedMessage;
+    /// #         pub struct VersionedTransaction {
+    /// #             pub message: solana_message::VersionedMessage,
+    /// #         }
+    /// #         impl VersionedTransaction {
+    /// #             pub fn try_new(
+    /// #                 message: VersionedMessage,
+    /// #                 _keypairs: &[&Keypair],
+    /// #             ) -> std::result::Result<Self, solana_example_mocks::solana_signer::SignerError> {
+    /// #                 Ok(VersionedTransaction {
+    /// #                     message,
+    /// #                 })
+    /// #             }
+    /// #         }
+    /// #     }
+    /// # }
     /// use solana_transaction::versioned::VersionedTransaction;
     ///
     /// fn create_tx_with_address_table_lookup(
     ///     client: &RpcClient,
     ///     instruction: Instruction,
-    ///     address_lookup_table_key: Pubkey,
+    ///     address_lookup_table_key: Address,
     ///     payer: &Keypair,
     /// ) -> Result<VersionedTransaction> {
     ///     # client.set_get_account_response(address_lookup_table_key, Account {
@@ -257,15 +287,15 @@ impl Message {
     /// #
     /// # let client = RpcClient::new(String::new());
     /// # let payer = Keypair::new();
-    /// # let address_lookup_table_key = Pubkey::new_unique();
-    /// # let instruction = Instruction::new_with_bincode(Pubkey::new_unique(), &(), vec![
-    /// #   AccountMeta::new(Pubkey::new_unique(), false),
+    /// # let address_lookup_table_key = Address::new_unique();
+    /// # let instruction = Instruction::new_with_bincode(Address::new_unique(), &(), vec![
+    /// #   AccountMeta::new(Address::new_unique(), false),
     /// # ]);
     /// # create_tx_with_address_table_lookup(&client, instruction, address_lookup_table_key, &payer)?;
     /// # Ok::<(), anyhow::Error>(())
     /// ```
     pub fn try_compile(
-        payer: &Pubkey,
+        payer: &Address,
         instructions: &[Instruction],
         address_lookup_table_accounts: &[AddressLookupTableAccount],
         recent_blockhash: Hash,
@@ -297,10 +327,10 @@ impl Message {
         })
     }
 
-    #[cfg(feature = "bincode")]
-    /// Serialize this message with a version #0 prefix using bincode encoding.
+    #[cfg(feature = "wincode")]
+    /// Serialize this message with a version #0 prefix using wincode encoding.
     pub fn serialize(&self) -> Vec<u8> {
-        bincode::serialize(&(crate::MESSAGE_VERSION_PREFIX, self)).unwrap()
+        wincode::serialize(&(crate::MESSAGE_VERSION_PREFIX, self)).unwrap()
     }
 
     /// Returns true if the account at the specified index is called as a program by an instruction
@@ -356,7 +386,7 @@ impl Message {
     pub fn is_maybe_writable(
         &self,
         key_index: usize,
-        reserved_account_keys: Option<&HashSet<Pubkey>>,
+        reserved_account_keys: Option<&HashSet<Address>>,
     ) -> bool {
         self.is_writable_index(key_index)
             && !self.is_account_maybe_reserved(key_index, reserved_account_keys)
@@ -373,7 +403,7 @@ impl Message {
     fn is_account_maybe_reserved(
         &self,
         key_index: usize,
-        reserved_account_keys: Option<&HashSet<Pubkey>>,
+        reserved_account_keys: Option<&HashSet<Address>>,
     ) -> bool {
         let mut is_maybe_reserved = false;
         if let Some(reserved_account_keys) = reserved_account_keys {
@@ -396,7 +426,7 @@ mod tests {
                 num_required_signatures: 1,
                 ..MessageHeader::default()
             },
-            account_keys: vec![Pubkey::new_unique()],
+            account_keys: vec![Address::new_unique()],
             ..Message::default()
         }
         .sanitize()
@@ -410,7 +440,7 @@ mod tests {
                 num_required_signatures: 1,
                 ..MessageHeader::default()
             },
-            account_keys: vec![Pubkey::new_unique(), Pubkey::new_unique()],
+            account_keys: vec![Address::new_unique(), Address::new_unique()],
             instructions: vec![CompiledInstruction {
                 program_id_index: 1,
                 accounts: vec![0],
@@ -429,9 +459,9 @@ mod tests {
                 num_required_signatures: 1,
                 ..MessageHeader::default()
             },
-            account_keys: vec![Pubkey::new_unique()],
+            account_keys: vec![Address::new_unique()],
             address_table_lookups: vec![MessageAddressTableLookup {
-                account_key: Pubkey::new_unique(),
+                account_key: Address::new_unique(),
                 writable_indexes: vec![1, 2, 3],
                 readonly_indexes: vec![0],
             }],
@@ -448,9 +478,9 @@ mod tests {
                 num_required_signatures: 1,
                 ..MessageHeader::default()
             },
-            account_keys: vec![Pubkey::new_unique()],
+            account_keys: vec![Address::new_unique()],
             address_table_lookups: vec![MessageAddressTableLookup {
-                account_key: Pubkey::new_unique(),
+                account_key: Address::new_unique(),
                 writable_indexes: vec![1, 2, 3],
                 readonly_indexes: vec![0],
             }],
@@ -472,9 +502,9 @@ mod tests {
                 num_required_signatures: 1,
                 ..MessageHeader::default()
             },
-            account_keys: vec![Pubkey::new_unique(), Pubkey::new_unique()],
+            account_keys: vec![Address::new_unique(), Address::new_unique()],
             address_table_lookups: vec![MessageAddressTableLookup {
-                account_key: Pubkey::new_unique(),
+                account_key: Address::new_unique(),
                 writable_indexes: vec![1, 2, 3],
                 readonly_indexes: vec![0],
             }],
@@ -493,7 +523,7 @@ mod tests {
     fn test_sanitize_without_signer() {
         assert!(Message {
             header: MessageHeader::default(),
-            account_keys: vec![Pubkey::new_unique()],
+            account_keys: vec![Address::new_unique()],
             ..Message::default()
         }
         .sanitize()
@@ -508,7 +538,7 @@ mod tests {
                 num_readonly_signed_accounts: 1,
                 ..MessageHeader::default()
             },
-            account_keys: vec![Pubkey::new_unique()],
+            account_keys: vec![Address::new_unique()],
             ..Message::default()
         }
         .sanitize()
@@ -522,9 +552,9 @@ mod tests {
                 num_required_signatures: 1,
                 ..MessageHeader::default()
             },
-            account_keys: vec![Pubkey::new_unique()],
+            account_keys: vec![Address::new_unique()],
             address_table_lookups: vec![MessageAddressTableLookup {
-                account_key: Pubkey::new_unique(),
+                account_key: Address::new_unique(),
                 writable_indexes: vec![],
                 readonly_indexes: vec![],
             }],
@@ -541,7 +571,7 @@ mod tests {
                 num_required_signatures: 1,
                 ..MessageHeader::default()
             },
-            account_keys: (0..=u8::MAX).map(|_| Pubkey::new_unique()).collect(),
+            account_keys: (0..=u8::MAX).map(|_| Address::new_unique()).collect(),
             ..Message::default()
         }
         .sanitize()
@@ -555,7 +585,7 @@ mod tests {
                 num_required_signatures: 1,
                 ..MessageHeader::default()
             },
-            account_keys: (0..=256).map(|_| Pubkey::new_unique()).collect(),
+            account_keys: (0..=256).map(|_| Address::new_unique()).collect(),
             ..Message::default()
         }
         .sanitize()
@@ -569,9 +599,9 @@ mod tests {
                 num_required_signatures: 1,
                 ..MessageHeader::default()
             },
-            account_keys: vec![Pubkey::new_unique()],
+            account_keys: vec![Address::new_unique()],
             address_table_lookups: vec![MessageAddressTableLookup {
-                account_key: Pubkey::new_unique(),
+                account_key: Address::new_unique(),
                 writable_indexes: (0..=254).step_by(2).collect(),
                 readonly_indexes: (1..=254).step_by(2).collect(),
             }],
@@ -588,9 +618,9 @@ mod tests {
                 num_required_signatures: 1,
                 ..MessageHeader::default()
             },
-            account_keys: vec![Pubkey::new_unique()],
+            account_keys: vec![Address::new_unique()],
             address_table_lookups: vec![MessageAddressTableLookup {
-                account_key: Pubkey::new_unique(),
+                account_key: Address::new_unique(),
                 writable_indexes: (0..=255).step_by(2).collect(),
                 readonly_indexes: (1..=255).step_by(2).collect(),
             }],
@@ -607,9 +637,9 @@ mod tests {
                 num_required_signatures: 1,
                 ..MessageHeader::default()
             },
-            account_keys: vec![Pubkey::new_unique()],
+            account_keys: vec![Address::new_unique()],
             address_table_lookups: vec![MessageAddressTableLookup {
-                account_key: Pubkey::new_unique(),
+                account_key: Address::new_unique(),
                 writable_indexes: vec![0],
                 readonly_indexes: vec![],
             }],
@@ -631,9 +661,9 @@ mod tests {
                 num_required_signatures: 1,
                 ..MessageHeader::default()
             },
-            account_keys: vec![Pubkey::new_unique(), Pubkey::new_unique()],
+            account_keys: vec![Address::new_unique(), Address::new_unique()],
             address_table_lookups: vec![MessageAddressTableLookup {
-                account_key: Pubkey::new_unique(),
+                account_key: Address::new_unique(),
                 writable_indexes: vec![],
                 readonly_indexes: vec![0],
             }],
@@ -658,7 +688,7 @@ mod tests {
     #[test]
     fn test_try_compile() {
         let mut keys = vec![];
-        keys.resize_with(7, Pubkey::new_unique);
+        keys.resize_with(7, Address::new_unique);
 
         let payer = keys[0];
         let program_id = keys[6];
@@ -675,11 +705,11 @@ mod tests {
         }];
         let address_lookup_table_accounts = vec![
             AddressLookupTableAccount {
-                key: Pubkey::new_unique(),
+                key: Address::new_unique(),
                 addresses: vec![keys[4], keys[5], keys[6]],
             },
             AddressLookupTableAccount {
-                key: Pubkey::new_unique(),
+                key: Address::new_unique(),
                 addresses: vec![],
             },
         ];
@@ -716,12 +746,12 @@ mod tests {
 
     #[test]
     fn test_is_maybe_writable() {
-        let key0 = Pubkey::new_unique();
-        let key1 = Pubkey::new_unique();
-        let key2 = Pubkey::new_unique();
-        let key3 = Pubkey::new_unique();
-        let key4 = Pubkey::new_unique();
-        let key5 = Pubkey::new_unique();
+        let key0 = Address::new_unique();
+        let key1 = Address::new_unique();
+        let key2 = Address::new_unique();
+        let key3 = Address::new_unique();
+        let key4 = Address::new_unique();
+        let key5 = Address::new_unique();
 
         let message = Message {
             header: MessageHeader {
@@ -731,7 +761,7 @@ mod tests {
             },
             account_keys: vec![key0, key1, key2, key3, key4, key5],
             address_table_lookups: vec![MessageAddressTableLookup {
-                account_key: Pubkey::new_unique(),
+                account_key: Address::new_unique(),
                 writable_indexes: vec![0],
                 readonly_indexes: vec![1],
             }],
@@ -754,13 +784,13 @@ mod tests {
 
     #[test]
     fn test_is_account_maybe_reserved() {
-        let key0 = Pubkey::new_unique();
-        let key1 = Pubkey::new_unique();
+        let key0 = Address::new_unique();
+        let key1 = Address::new_unique();
 
         let message = Message {
             account_keys: vec![key0, key1],
             address_table_lookups: vec![MessageAddressTableLookup {
-                account_key: Pubkey::new_unique(),
+                account_key: Address::new_unique(),
                 writable_indexes: vec![0],
                 readonly_indexes: vec![1],
             }],

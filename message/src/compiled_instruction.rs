@@ -2,7 +2,12 @@
 use serde_derive::{Deserialize, Serialize};
 #[cfg(feature = "frozen-abi")]
 use solana_frozen_abi_macro::AbiExample;
-use {solana_pubkey::Pubkey, solana_sanitize::Sanitize};
+use {solana_address::Address, solana_sanitize::Sanitize};
+#[cfg(feature = "wincode")]
+use {
+    solana_short_vec::ShortU16,
+    wincode::{containers, SchemaRead, SchemaWrite},
+};
 
 /// A compact encoding of an instruction.
 ///
@@ -17,6 +22,7 @@ use {solana_pubkey::Pubkey, solana_sanitize::Sanitize};
     derive(Deserialize, Serialize),
     serde(rename_all = "camelCase")
 )]
+#[cfg_attr(feature = "wincode", derive(SchemaWrite, SchemaRead))]
 #[derive(Debug, PartialEq, Eq, Clone)]
 #[repr(C)]
 pub struct CompiledInstruction {
@@ -24,18 +30,24 @@ pub struct CompiledInstruction {
     pub program_id_index: u8,
     /// Ordered indices into the transaction keys array indicating which accounts to pass to the program.
     #[cfg_attr(feature = "serde", serde(with = "solana_short_vec"))]
+    #[cfg_attr(feature = "wincode", wincode(with = "containers::Vec<_, ShortU16>"))]
     pub accounts: Vec<u8>,
     /// The program input data.
     #[cfg_attr(feature = "serde", serde(with = "solana_short_vec"))]
+    #[cfg_attr(feature = "wincode", wincode(with = "containers::Vec<_, ShortU16>"))]
     pub data: Vec<u8>,
 }
 
 impl Sanitize for CompiledInstruction {}
 
 impl CompiledInstruction {
-    #[cfg(feature = "bincode")]
-    pub fn new<T: serde::Serialize>(program_ids_index: u8, data: &T, accounts: Vec<u8>) -> Self {
-        let data = bincode::serialize(data).unwrap();
+    #[cfg(feature = "wincode")]
+    pub fn new<T: wincode::Serialize<Src = T>>(
+        program_ids_index: u8,
+        data: &T,
+        accounts: Vec<u8>,
+    ) -> Self {
+        let data = wincode::serialize(data).unwrap();
         Self {
             program_id_index: program_ids_index,
             accounts,
@@ -51,7 +63,7 @@ impl CompiledInstruction {
         }
     }
 
-    pub fn program_id<'a>(&self, program_ids: &'a [Pubkey]) -> &'a Pubkey {
-        &program_ids[self.program_id_index as usize]
+    pub fn program_id<'a>(&self, tx_accounts: &'a [Address]) -> &'a Address {
+        &tx_accounts[self.program_id_index as usize]
     }
 }

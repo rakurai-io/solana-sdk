@@ -2,10 +2,12 @@
 #![cfg_attr(feature = "frozen-abi", feature(min_specialization))]
 #![allow(clippy::arithmetic_side_effects)]
 #![no_std]
-#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 use log::*;
 #[cfg(feature = "frozen-abi")]
 extern crate std;
+#[cfg(feature = "wincode")]
+use wincode::{SchemaRead, SchemaWrite};
 
 #[repr(C)]
 #[cfg_attr(feature = "frozen-abi", derive(solana_frozen_abi_macro::AbiExample))]
@@ -13,6 +15,7 @@ extern crate std;
     feature = "serde",
     derive(serde_derive::Serialize, serde_derive::Deserialize)
 )]
+#[cfg_attr(feature = "wincode", derive(SchemaWrite, SchemaRead))]
 #[derive(Default, PartialEq, Eq, Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub struct FeeCalculator {
@@ -194,8 +197,6 @@ mod tests {
 
     #[test]
     fn test_fee_rate_governor_derived_default() {
-        agave_logger::setup();
-
         let f0 = FeeRateGovernor::default();
         assert_eq!(
             f0.target_signatures_per_slot,
@@ -224,8 +225,6 @@ mod tests {
 
     #[test]
     fn test_fee_rate_governor_derived_adjust() {
-        agave_logger::setup();
-
         let mut f = FeeRateGovernor {
             target_lamports_per_signature: 100,
             target_signatures_per_slot: 100,
@@ -237,9 +236,7 @@ mod tests {
         let mut count = 0;
         loop {
             let last_lamports_per_signature = f.lamports_per_signature;
-
             f = FeeRateGovernor::new_derived(&f, u64::MAX);
-            info!("[up] f.lamports_per_signature={}", f.lamports_per_signature);
 
             // some maximum target reached
             if f.lamports_per_signature == last_lamports_per_signature {
@@ -256,11 +253,6 @@ mod tests {
             let last_lamports_per_signature = f.lamports_per_signature;
             f = FeeRateGovernor::new_derived(&f, 0);
 
-            info!(
-                "[down] f.lamports_per_signature={}",
-                f.lamports_per_signature
-            );
-
             // some minimum target reached
             if f.lamports_per_signature == last_lamports_per_signature {
                 break;
@@ -275,10 +267,7 @@ mod tests {
         let mut count = 0;
         while f.lamports_per_signature != f.target_lamports_per_signature {
             f = FeeRateGovernor::new_derived(&f, f.target_signatures_per_slot);
-            info!(
-                "[target] f.lamports_per_signature={}",
-                f.lamports_per_signature
-            );
+
             // shouldn't take more than 100 steps to get to target
             assert!(count < 100);
             count += 1;

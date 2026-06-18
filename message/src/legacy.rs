@@ -20,19 +20,27 @@ use {
         compiled_instruction::CompiledInstruction, compiled_keys::CompiledKeys,
         inline_nonce::advance_nonce_account_instruction, MessageHeader,
     },
+    solana_address::Address,
     solana_hash::Hash,
     solana_instruction::Instruction,
-    solana_pubkey::Pubkey,
     solana_sanitize::{Sanitize, SanitizeError},
-    solana_sdk_ids::bpf_loader_upgradeable,
     std::{collections::HashSet, convert::TryFrom},
 };
+#[cfg(feature = "wincode")]
+use {
+    core::mem::MaybeUninit,
+    solana_short_vec::ShortU16,
+    wincode::{
+        config::Config, containers, io::Reader, ReadResult, SchemaRead, SchemaReadContext,
+        SchemaWrite,
+    },
+};
 
-fn position(keys: &[Pubkey], key: &Pubkey) -> u8 {
+fn position(keys: &[Address], key: &Address) -> u8 {
     keys.iter().position(|k| k == key).unwrap() as u8
 }
 
-fn compile_instruction(ix: &Instruction, keys: &[Pubkey]) -> CompiledInstruction {
+fn compile_instruction(ix: &Instruction, keys: &[Address]) -> CompiledInstruction {
     let accounts: Vec<_> = ix
         .accounts
         .iter()
@@ -46,7 +54,7 @@ fn compile_instruction(ix: &Instruction, keys: &[Pubkey]) -> CompiledInstruction
     }
 }
 
-fn compile_instructions(ixs: &[Instruction], keys: &[Pubkey]) -> Vec<CompiledInstruction> {
+fn compile_instructions(ixs: &[Instruction], keys: &[Address]) -> Vec<CompiledInstruction> {
     ixs.iter().map(|ix| compile_instruction(ix, keys)).collect()
 }
 
@@ -74,6 +82,7 @@ fn compile_instructions(ixs: &[Instruction], keys: &[Pubkey]) -> Vec<CompiledIns
     derive(Deserialize, Serialize),
     serde(rename_all = "camelCase")
 )]
+#[cfg_attr(feature = "wincode", derive(SchemaWrite, SchemaRead))]
 #[derive(Default, Debug, PartialEq, Eq, Clone)]
 #[repr(C)]
 pub struct Message {
@@ -83,7 +92,8 @@ pub struct Message {
 
     /// All the account keys used by this transaction.
     #[cfg_attr(feature = "serde", serde(with = "solana_short_vec"))]
-    pub account_keys: Vec<Pubkey>,
+    #[cfg_attr(feature = "wincode", wincode(with = "containers::Vec<_, ShortU16>"))]
+    pub account_keys: Vec<Address>,
 
     /// The id of a recent ledger entry.
     pub recent_blockhash: Hash,
@@ -91,7 +101,40 @@ pub struct Message {
     /// Programs that will be executed in sequence and committed in one atomic transaction if all
     /// succeed.
     #[cfg_attr(feature = "serde", serde(with = "solana_short_vec"))]
+    #[cfg_attr(feature = "wincode", wincode(with = "containers::Vec<_, ShortU16>"))]
     pub instructions: Vec<CompiledInstruction>,
+}
+
+#[cfg(feature = "wincode")]
+unsafe impl<'de, C: Config> SchemaReadContext<'de, C, u8> for Message {
+    type Dst = Self;
+
+    fn read_with_context(
+        num_required_signatures: u8,
+        mut reader: impl Reader<'de>,
+        dst: &mut MaybeUninit<Self::Dst>,
+    ) -> ReadResult<()> {
+        let header = {
+            let mut reader = unsafe { reader.as_trusted_for(2) }?;
+            MessageHeader {
+                num_required_signatures,
+                num_readonly_signed_accounts: reader.take_byte()?,
+                num_readonly_unsigned_accounts: reader.take_byte()?,
+            }
+        };
+        let account_keys =
+            <containers::Vec<Address, ShortU16> as SchemaRead<C>>::get(reader.by_ref())?;
+        let recent_blockhash = <Hash as SchemaRead<C>>::get(reader.by_ref())?;
+        let instructions =
+            <containers::Vec<CompiledInstruction, ShortU16> as SchemaRead<C>>::get(reader)?;
+        dst.write(Message {
+            header,
+            account_keys,
+            recent_blockhash,
+            instructions,
+        });
+        Ok(())
+    }
 }
 
 impl Sanitize for Message {
@@ -149,7 +192,7 @@ impl Message {
     /// use solana_instruction::Instruction;
     /// use solana_keypair::Keypair;
     /// use solana_message::Message;
-    /// use solana_pubkey::Pubkey;
+    /// use solana_address::Address;
     /// use solana_rpc_client::rpc_client::RpcClient;
     /// use solana_signer::Signer;
     /// use solana_transaction::Transaction;
@@ -167,7 +210,7 @@ impl Message {
     ///
     /// fn send_initialize_tx(
     ///     client: &RpcClient,
-    ///     program_id: Pubkey,
+    ///     program_id: Address,
     ///     payer: &Keypair
     /// ) -> Result<()> {
     ///
@@ -192,13 +235,13 @@ impl Message {
     /// }
     /// #
     /// # let client = RpcClient::new(String::new());
-    /// # let program_id = Pubkey::new_unique();
+    /// # let program_id = Address::new_unique();
     /// # let payer = Keypair::new();
     /// # send_initialize_tx(&client, program_id, &payer)?;
     /// #
     /// # Ok::<(), anyhow::Error>(())
     /// ```
-    pub fn new(instructions: &[Instruction], payer: Option<&Pubkey>) -> Self {
+    pub fn new(instructions: &[Instruction], payer: Option<&Address>) -> Self {
         Self::new_with_blockhash(instructions, payer, &Hash::default())
     }
 
@@ -220,7 +263,7 @@ impl Message {
     /// use solana_instruction::Instruction;
     /// use solana_keypair::Keypair;
     /// use solana_message::Message;
-    /// use solana_pubkey::Pubkey;
+    /// use solana_address::Address;
     /// use solana_rpc_client::rpc_client::RpcClient;
     /// use solana_signer::Signer;
     /// use solana_transaction::Transaction;
@@ -238,7 +281,7 @@ impl Message {
     ///
     /// fn send_initialize_tx(
     ///     client: &RpcClient,
-    ///     program_id: Pubkey,
+    ///     program_id: Address,
     ///     payer: &Keypair
     /// ) -> Result<()> {
     ///
@@ -259,14 +302,14 @@ impl Message {
     ///     );
     ///
     ///     let mut tx = Transaction::new_unsigned(message);
-    ///     tx.sign(&[payer], tx.message.recent_blockhash);
+    ///     tx.sign(&[payer], blockhash);
     ///     client.send_and_confirm_transaction(&tx)?;
     ///
     ///     Ok(())
     /// }
     /// #
     /// # let client = RpcClient::new(String::new());
-    /// # let program_id = Pubkey::new_unique();
+    /// # let program_id = Address::new_unique();
     /// # let payer = Keypair::new();
     /// # send_initialize_tx(&client, program_id, &payer)?;
     /// #
@@ -274,7 +317,7 @@ impl Message {
     /// ```
     pub fn new_with_blockhash(
         instructions: &[Instruction],
-        payer: Option<&Pubkey>,
+        payer: Option<&Address>,
         blockhash: &Hash,
     ) -> Self {
         let compiled_keys = CompiledKeys::compile(instructions, payer.cloned());
@@ -287,7 +330,7 @@ impl Message {
             header.num_readonly_signed_accounts,
             header.num_readonly_unsigned_accounts,
             account_keys,
-            *blockhash,
+            Hash::new_from_array(blockhash.to_bytes()),
             instructions,
         )
     }
@@ -317,7 +360,7 @@ impl Message {
     /// use solana_instruction::Instruction;
     /// use solana_keypair::Keypair;
     /// use solana_message::Message;
-    /// use solana_pubkey::Pubkey;
+    /// use solana_address::Address;
     /// use solana_rpc_client::rpc_client::RpcClient;
     /// use solana_signer::Signer;
     /// use solana_transaction::Transaction;
@@ -338,9 +381,9 @@ impl Message {
     /// // returning it and the nonce account's pubkey.
     /// fn create_offline_initialize_tx(
     ///     client: &RpcClient,
-    ///     program_id: Pubkey,
+    ///     program_id: Address,
     ///     payer: &Keypair
-    /// ) -> Result<(Transaction, Pubkey)> {
+    /// ) -> Result<(Transaction, Address)> {
     ///
     ///     let bank_instruction = BankInstruction::Initialize;
     ///     let bank_instruction = Instruction::new_with_borsh(
@@ -368,7 +411,7 @@ impl Message {
     /// }
     ///
     /// fn make_nonce_account(client: &RpcClient, payer: &Keypair)
-    ///     -> Result<Pubkey>
+    ///     -> Result<Address>
     /// {
     ///     let nonce_account_address = Keypair::new();
     ///     let nonce_account_size = solana_nonce::state::State::size();
@@ -392,16 +435,16 @@ impl Message {
     /// }
     /// #
     /// # let client = RpcClient::new(String::new());
-    /// # let program_id = Pubkey::new_unique();
+    /// # let program_id = Address::new_unique();
     /// # let payer = Keypair::new();
     /// # create_offline_initialize_tx(&client, program_id, &payer)?;
     /// # Ok::<(), anyhow::Error>(())
     /// ```
     pub fn new_with_nonce(
         mut instructions: Vec<Instruction>,
-        payer: Option<&Pubkey>,
-        nonce_account_pubkey: &Pubkey,
-        nonce_authority_pubkey: &Pubkey,
+        payer: Option<&Address>,
+        nonce_account_pubkey: &Address,
+        nonce_authority_pubkey: &Address,
     ) -> Self {
         let nonce_ix =
             advance_nonce_account_instruction(nonce_account_pubkey, nonce_authority_pubkey);
@@ -413,7 +456,7 @@ impl Message {
         num_required_signatures: u8,
         num_readonly_signed_accounts: u8,
         num_readonly_unsigned_accounts: u8,
-        account_keys: Vec<Pubkey>,
+        account_keys: Vec<Address>,
         recent_blockhash: Hash,
         instructions: Vec<CompiledInstruction>,
     ) -> Self {
@@ -430,7 +473,7 @@ impl Message {
     }
 
     /// Compute the blake3 hash of this transaction's message.
-    #[cfg(all(not(target_os = "solana"), feature = "bincode", feature = "blake3"))]
+    #[cfg(all(not(target_os = "solana"), feature = "wincode", feature = "blake3"))]
     pub fn hash(&self) -> Hash {
         let message_bytes = self.serialize();
         Self::hash_raw_message(&message_bytes)
@@ -451,12 +494,12 @@ impl Message {
         compile_instruction(ix, &self.account_keys)
     }
 
-    #[cfg(feature = "bincode")]
+    #[cfg(feature = "wincode")]
     pub fn serialize(&self) -> Vec<u8> {
-        bincode::serialize(self).unwrap()
+        wincode::serialize(self).unwrap()
     }
 
-    pub fn program_id(&self, instruction_index: usize) -> Option<&Pubkey> {
+    pub fn program_id(&self, instruction_index: usize) -> Option<&Address> {
         Some(
             &self.account_keys[self.instructions.get(instruction_index)?.program_id_index as usize],
         )
@@ -466,7 +509,7 @@ impl Message {
         Some(self.instructions.get(instruction_index)?.program_id_index as usize)
     }
 
-    pub fn program_ids(&self) -> Vec<&Pubkey> {
+    pub fn program_ids(&self) -> Vec<&Address> {
         self.instructions
             .iter()
             .map(|ix| &self.account_keys[ix.program_id_index as usize])
@@ -486,13 +529,7 @@ impl Message {
     }
 
     pub fn is_key_called_as_program(&self, key_index: usize) -> bool {
-        if let Ok(key_index) = u8::try_from(key_index) {
-            self.instructions
-                .iter()
-                .any(|ix| ix.program_id_index == key_index)
-        } else {
-            false
-        }
+        super::is_key_called_as_program(&self.instructions, key_index)
     }
 
     pub fn program_position(&self, index: usize) -> Option<usize> {
@@ -507,19 +544,13 @@ impl Message {
     }
 
     pub fn demote_program_id(&self, i: usize) -> bool {
-        self.is_key_called_as_program(i) && !self.is_upgradeable_loader_present()
+        super::is_program_id_write_demoted(i, &self.account_keys, &self.instructions)
     }
 
     /// Returns true if the account at the specified index was requested to be
     /// writable. This method should not be used directly.
     pub(super) fn is_writable_index(&self, i: usize) -> bool {
-        i < (self.header.num_required_signatures as usize)
-            .saturating_sub(self.header.num_readonly_signed_accounts as usize)
-            || (i >= self.header.num_required_signatures as usize
-                && i < self
-                    .account_keys
-                    .len()
-                    .saturating_sub(self.header.num_readonly_unsigned_accounts as usize))
+        super::is_writable_index(i, self.header, &self.account_keys)
     }
 
     /// Returns true if the account at the specified index is writable by the
@@ -531,34 +562,22 @@ impl Message {
     pub fn is_maybe_writable(
         &self,
         i: usize,
-        reserved_account_keys: Option<&HashSet<Pubkey>>,
+        reserved_account_keys: Option<&HashSet<Address>>,
     ) -> bool {
-        (self.is_writable_index(i))
-            && !self.is_account_maybe_reserved(i, reserved_account_keys)
-            && !self.demote_program_id(i)
-    }
-
-    /// Returns true if the account at the specified index is in the optional
-    /// reserved account keys set.
-    fn is_account_maybe_reserved(
-        &self,
-        key_index: usize,
-        reserved_account_keys: Option<&HashSet<Pubkey>>,
-    ) -> bool {
-        let mut is_maybe_reserved = false;
-        if let Some(reserved_account_keys) = reserved_account_keys {
-            if let Some(key) = self.account_keys.get(key_index) {
-                is_maybe_reserved = reserved_account_keys.contains(key);
-            }
-        }
-        is_maybe_reserved
+        super::is_maybe_writable(
+            i,
+            self.header,
+            &self.account_keys,
+            &self.instructions,
+            reserved_account_keys,
+        )
     }
 
     pub fn is_signer(&self, i: usize) -> bool {
         i < self.header.num_required_signatures as usize
     }
 
-    pub fn signer_keys(&self) -> Vec<&Pubkey> {
+    pub fn signer_keys(&self) -> Vec<&Address> {
         // Clamp in case we're working on un-`sanitize()`ed input
         let last_key = self
             .account_keys
@@ -583,9 +602,7 @@ impl Message {
 
     /// Returns `true` if any account is the BPF upgradeable loader.
     pub fn is_upgradeable_loader_present(&self) -> bool {
-        self.account_keys
-            .iter()
-            .any(|&key| key == bpf_loader_upgradeable::id())
+        super::is_upgradeable_loader_present(&self.account_keys)
     }
 }
 
@@ -601,8 +618,8 @@ mod tests {
     #[test]
     // Ensure there's a way to calculate the number of required signatures.
     fn test_message_signed_keys_len() {
-        let program_id = Pubkey::default();
-        let id0 = Pubkey::default();
+        let program_id = Address::default();
+        let id0 = Address::default();
         let ix = Instruction::new_with_bincode(program_id, &0, vec![AccountMeta::new(id0, false)]);
         let message = Message::new(&[ix], None);
         assert_eq!(message.header.num_required_signatures, 0);
@@ -614,10 +631,10 @@ mod tests {
 
     #[test]
     fn test_message_kitchen_sink() {
-        let program_id0 = Pubkey::new_unique();
-        let program_id1 = Pubkey::new_unique();
-        let id0 = Pubkey::default();
-        let id1 = Pubkey::new_unique();
+        let program_id0 = Address::new_unique();
+        let program_id1 = Address::new_unique();
+        let id0 = Address::default();
+        let id1 = Address::new_unique();
         let message = Message::new(
             &[
                 Instruction::new_with_bincode(program_id0, &0, vec![AccountMeta::new(id0, false)]),
@@ -642,9 +659,9 @@ mod tests {
 
     #[test]
     fn test_message_payer_first() {
-        let program_id = Pubkey::default();
-        let payer = Pubkey::new_unique();
-        let id0 = Pubkey::default();
+        let program_id = Address::default();
+        let payer = Address::new_unique();
+        let id0 = Address::default();
 
         let ix = Instruction::new_with_bincode(program_id, &0, vec![AccountMeta::new(id0, false)]);
         let message = Message::new(&[ix], Some(&payer));
@@ -665,9 +682,9 @@ mod tests {
 
     #[test]
     fn test_program_position() {
-        let program_id0 = Pubkey::default();
-        let program_id1 = Pubkey::new_unique();
-        let id = Pubkey::new_unique();
+        let program_id0 = Address::default();
+        let program_id1 = Address::new_unique();
+        let id = Address::new_unique();
         let message = Message::new(
             &[
                 Instruction::new_with_bincode(program_id0, &0, vec![AccountMeta::new(id, false)]),
@@ -682,12 +699,12 @@ mod tests {
 
     #[test]
     fn test_is_maybe_writable() {
-        let key0 = Pubkey::new_unique();
-        let key1 = Pubkey::new_unique();
-        let key2 = Pubkey::new_unique();
-        let key3 = Pubkey::new_unique();
-        let key4 = Pubkey::new_unique();
-        let key5 = Pubkey::new_unique();
+        let key0 = Address::new_unique();
+        let key1 = Address::new_unique();
+        let key2 = Address::new_unique();
+        let key3 = Address::new_unique();
+        let key4 = Address::new_unique();
+        let key5 = Address::new_unique();
 
         let message = Message {
             header: MessageHeader {
@@ -713,30 +730,10 @@ mod tests {
     }
 
     #[test]
-    fn test_is_account_maybe_reserved() {
-        let key0 = Pubkey::new_unique();
-        let key1 = Pubkey::new_unique();
-
-        let message = Message {
-            account_keys: vec![key0, key1],
-            ..Message::default()
-        };
-
-        let reserved_account_keys = HashSet::from([key1]);
-
-        assert!(!message.is_account_maybe_reserved(0, Some(&reserved_account_keys)));
-        assert!(message.is_account_maybe_reserved(1, Some(&reserved_account_keys)));
-        assert!(!message.is_account_maybe_reserved(2, Some(&reserved_account_keys)));
-        assert!(!message.is_account_maybe_reserved(0, None));
-        assert!(!message.is_account_maybe_reserved(1, None));
-        assert!(!message.is_account_maybe_reserved(2, None));
-    }
-
-    #[test]
     fn test_program_ids() {
-        let key0 = Pubkey::new_unique();
-        let key1 = Pubkey::new_unique();
-        let loader2 = Pubkey::new_unique();
+        let key0 = Address::new_unique();
+        let key1 = Address::new_unique();
+        let loader2 = Address::new_unique();
         let instructions = vec![CompiledInstruction::new(2, &(), vec![0, 1])];
         let message = Message::new_with_compiled_instructions(
             1,
@@ -751,9 +748,9 @@ mod tests {
 
     #[test]
     fn test_is_instruction_account() {
-        let key0 = Pubkey::new_unique();
-        let key1 = Pubkey::new_unique();
-        let loader2 = Pubkey::new_unique();
+        let key0 = Address::new_unique();
+        let key1 = Address::new_unique();
+        let loader2 = Address::new_unique();
         let instructions = vec![CompiledInstruction::new(2, &(), vec![0, 1])];
         let message = Message::new_with_compiled_instructions(
             1,
@@ -781,12 +778,12 @@ mod tests {
     fn test_message_hash() {
         // when this test fails, it's most likely due to a new serialized format of a message.
         // in this case, the domain prefix `solana-tx-message-v1` should be updated.
-        let program_id0 = Pubkey::from_str("4uQeVj5tqViQh7yWWGStvkEG1Zmhx6uasJtWCJziofM").unwrap();
-        let program_id1 = Pubkey::from_str("8opHzTAnfzRpPEx21XtnrVTX28YQuCpAjcn1PczScKh").unwrap();
-        let id0 = Pubkey::from_str("CiDwVBFgWV9E5MvXWoLgnEgn2hK7rJikbvfWavzAQz3").unwrap();
-        let id1 = Pubkey::from_str("GcdayuLaLyrdmUu324nahyv33G5poQdLUEZ1nEytDeP").unwrap();
-        let id2 = Pubkey::from_str("LX3EUdRUBUa3TbsYXLEUdj9J3prXkWXvLYSWyYyc2Jj").unwrap();
-        let id3 = Pubkey::from_str("QRSsyMWN1yHT9ir42bgNZUNZ4PdEhcSWCrL2AryKpy5").unwrap();
+        let program_id0 = Address::from_str("4uQeVj5tqViQh7yWWGStvkEG1Zmhx6uasJtWCJziofM").unwrap();
+        let program_id1 = Address::from_str("8opHzTAnfzRpPEx21XtnrVTX28YQuCpAjcn1PczScKh").unwrap();
+        let id0 = Address::from_str("CiDwVBFgWV9E5MvXWoLgnEgn2hK7rJikbvfWavzAQz3").unwrap();
+        let id1 = Address::from_str("GcdayuLaLyrdmUu324nahyv33G5poQdLUEZ1nEytDeP").unwrap();
+        let id2 = Address::from_str("LX3EUdRUBUa3TbsYXLEUdj9J3prXkWXvLYSWyYyc2Jj").unwrap();
+        let id3 = Address::from_str("QRSsyMWN1yHT9ir42bgNZUNZ4PdEhcSWCrL2AryKpy5").unwrap();
         let instructions = vec![
             Instruction::new_with_bincode(program_id0, &0, vec![AccountMeta::new(id0, false)]),
             Instruction::new_with_bincode(program_id0, &0, vec![AccountMeta::new(id1, true)]),
@@ -814,7 +811,7 @@ mod tests {
         // Directly matching issue #150 PoC 1:
         // num_readonly_signed_accounts > num_required_signatures
         // This now results in the first part of the OR condition in is_writable_index effectively becoming `i < 0`.
-        let key0 = Pubkey::new_unique();
+        let key0 = Address::new_unique();
         let message1 = Message {
             header: MessageHeader {
                 num_required_signatures: 1,
@@ -828,7 +825,7 @@ mod tests {
         assert!(!message1.is_writable_index(0));
 
         // Matching issue #150 PoC 2 - num_readonly_unsigned_accounts > account_keys.len()
-        let key_for_poc2 = Pubkey::new_unique();
+        let key_for_poc2 = Address::new_unique();
         let message2 = Message {
             header: MessageHeader {
                 num_required_signatures: 0,
@@ -856,7 +853,7 @@ mod tests {
         assert!(message3.is_writable_index(0));
 
         // Scenario 4: Both conditions, and testing an index that would rely on the second part of OR
-        let key1 = Pubkey::new_unique();
+        let key1 = Address::new_unique();
         let message4 = Message {
             header: MessageHeader {
                 num_required_signatures: 1, // Writable range starts before index 1 for signed accounts
