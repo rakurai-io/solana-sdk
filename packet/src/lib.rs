@@ -73,7 +73,7 @@ pub struct Meta {
     pub addr: IpAddr,
     pub port: u16,
     pub flags: PacketFlags,
-    remote_pubkey: Pubkey,
+    pub remote_pubkey: Pubkey,
 }
 
 #[cfg(feature = "frozen-abi")]
