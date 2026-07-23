@@ -7,7 +7,7 @@ use qualifier_attr::qualifiers;
 #[cfg(feature = "serde")]
 use serde::ser::{Serialize, Serializer};
 #[cfg(feature = "frozen-abi")]
-use solana_frozen_abi_macro::{frozen_abi, AbiExample};
+use solana_frozen_abi_macro::{frozen_abi, AbiExample, StableAbi, StableAbiSample};
 #[cfg(feature = "bincode")]
 use solana_sysvar::SysvarSerialize;
 use {
@@ -25,8 +25,11 @@ pub mod state_traits;
 #[repr(C)]
 #[cfg_attr(
     feature = "frozen-abi",
-    derive(AbiExample),
-    frozen_abi(digest = "62EqVoynUFvuui7DVfqWCvZP7bxKGJGioeSBnWrdjRME")
+    derive(AbiExample, StableAbi, StableAbiSample),
+    frozen_abi(
+        api_digest = "62EqVoynUFvuui7DVfqWCvZP7bxKGJGioeSBnWrdjRME",
+        abi_digest = "G4phLpfhujMpk4wS1WswCe4HqnQjCBPWjrXjvDZ6iUw8"
+    )
 )]
 #[cfg_attr(
     feature = "serde",
@@ -40,6 +43,12 @@ pub struct Account {
     pub lamports: u64,
     /// data held in this account
     #[cfg_attr(feature = "serde", serde(with = "serde_bytes"))]
+    #[cfg_attr(
+        feature = "frozen-abi",
+        stable_abi_sample(
+            with = "(0..rng.random_range(0..=1000)).map(|_| rng.random()).collect()"
+        )
+    )]
     pub data: Vec<u8>,
     /// the program that owns this account. If executable, the program that loads this account.
     pub owner: Pubkey,
@@ -120,7 +129,7 @@ impl Serialize for AccountSharedData {
 /// An Account with data that is stored on chain
 /// This will be the in-memory representation of the 'Account' struct data.
 /// The existing 'Account' structure cannot easily change due to downstream projects.
-#[cfg_attr(feature = "frozen-abi", derive(AbiExample))]
+#[cfg_attr(feature = "frozen-abi", derive(AbiExample, StableAbi, StableAbiSample))]
 #[cfg_attr(
     feature = "serde",
     derive(serde_derive::Deserialize),
