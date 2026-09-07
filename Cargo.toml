@@ -97,6 +97,7 @@ members = [
     "sysvar-id",
     "time-utils",
     "transaction",
+    "transaction-view",
     "transaction-error",
     "validator-exit",
     "vote-interface",
