@@ -12,7 +12,7 @@
 [package]
 edition = "2021"
 name = "solana-fee-calculator"
-version = "3.2.2"
+version = "3.3.0"
 authors = ["Anza Maintainers <maintainers@anza.xyz>"]
 build = false
 autolib = false
@@ -60,7 +60,7 @@ version = "1.0.226"
 optional = true
 
 [dependencies.solana-frozen-abi]
-version = "3.6.0"
+version = "3.8.0"
 features = ["frozen-abi"]
 optional = true
 
@@ -70,13 +70,13 @@ optional = true
 default-features = false
 
 [dependencies.wincode]
-version = "0.5.0"
+version = "0.6.0"
 features = ["derive"]
 optional = true
 default-features = false
 
 [dev-dependencies.solana-clock]
-version = "3.1.0"
+version = "3.2.0"
 
 [dev-dependencies.static_assertions]
 version = "1.1.0"

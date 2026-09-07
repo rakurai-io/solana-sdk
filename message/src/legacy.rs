@@ -14,13 +14,13 @@
 #[cfg(feature = "serde")]
 use serde_derive::{Deserialize, Serialize};
 #[cfg(feature = "frozen-abi")]
-use solana_frozen_abi_macro::{frozen_abi, AbiExample};
+use solana_frozen_abi_macro::{frozen_abi, AbiExample, StableAbi, StableAbiSample};
 #[cfg(feature = "std")]
 use std::collections::HashSet;
 use {
     crate::{
         compiled_instruction::CompiledInstruction, compiled_keys::CompiledKeys,
-        inline_nonce::advance_nonce_account_instruction, MessageHeader,
+        inline_nonce::advance_nonce_account_instruction, AddressSet, MessageHeader,
     },
     alloc::vec::Vec,
     core::convert::TryFrom,
@@ -61,6 +61,25 @@ fn compile_instructions(ixs: &[Instruction], keys: &[Address]) -> Vec<CompiledIn
     ixs.iter().map(|ix| compile_instruction(ix, keys)).collect()
 }
 
+/// Samples a `MessageHeader` whose `num_required_signatures` cannot be mistaken
+/// for a version prefix.
+///
+/// The legacy message format has no version prefix, so its first serialized byte
+/// (the header's `num_required_signatures`) must stay below
+/// `MESSAGE_VERSION_PREFIX`, otherwise it would decode as a versioned message.
+/// Masking the prefix bit keeps a sampled legacy message self-consistent across
+/// a serialize/deserialize roundtrip.
+#[cfg(feature = "frozen-abi")]
+fn sample_legacy_header(
+    rng: &mut (impl solana_frozen_abi::rand::RngCore + ?Sized),
+) -> MessageHeader {
+    use solana_frozen_abi::stable_abi::StableAbi;
+
+    let mut header = MessageHeader::random(rng);
+    header.num_required_signatures &= !crate::MESSAGE_VERSION_PREFIX;
+    header
+}
+
 /// A Solana transaction message (legacy).
 ///
 /// See the crate documentation for further description.
@@ -78,7 +97,7 @@ fn compile_instructions(ixs: &[Instruction], keys: &[Address]) -> Vec<CompiledIn
 #[cfg_attr(
     feature = "frozen-abi",
     frozen_abi(digest = "GXpvLNiMCnjnZpQEDKpc2NBpsqmRnAX7ZTCy9JmvG8Dg"),
-    derive(AbiExample)
+    derive(AbiExample, StableAbi, StableAbiSample)
 )]
 #[cfg_attr(
     feature = "serde",
@@ -91,6 +110,10 @@ fn compile_instructions(ixs: &[Instruction], keys: &[Address]) -> Vec<CompiledIn
 pub struct Message {
     /// The message header, identifying signed and read-only `account_keys`.
     // NOTE: Serialization-related changes must be paired with the direct read at sigverify.
+    #[cfg_attr(
+        feature = "frozen-abi",
+        stable_abi_sample(with = "sample_legacy_header(rng)")
+    )]
     pub header: MessageHeader,
 
     /// All the account keys used by this transaction.
@@ -558,23 +581,47 @@ impl Message {
     }
 
     /// Returns true if the account at the specified index is writable by the
-    /// instructions in this message. The `reserved_account_keys` param has been
-    /// optional to allow clients to approximate writability without requiring
-    /// fetching the latest set of reserved account keys. If this method is
-    /// called by the runtime, the latest set of reserved account keys must be
-    /// passed.
+    /// instructions in this message.
+    ///
+    /// # Important
+    ///
+    /// The `reserved_account_keys` param has been optional to allow clients to
+    /// approximate writability without requiring fetching the latest set of
+    /// reserved account keys. If this method is called by the runtime, the latest
+    /// set of reserved account keys must be passed.
     #[cfg(feature = "std")]
+    #[deprecated(
+        since = "4.4.0",
+        note = "Use `is_maybe_writable_with_reserved_addresses` instead"
+    )]
     pub fn is_maybe_writable(
         &self,
         i: usize,
         reserved_account_keys: Option<&HashSet<Address>>,
+    ) -> bool {
+        self.is_maybe_writable_with_reserved_addresses(i, reserved_account_keys)
+    }
+
+    /// Returns true if the account at the specified index is writable by the
+    /// instructions in this message.
+    ///
+    /// # Important
+    ///
+    /// The `reserved_addresses` param is optional to allow clients to approximate
+    /// writability without requiring fetching the latest set of protocol-reserved
+    /// addresses. If this method is called by the runtime, the latest set of
+    /// reserved addresses must be passed.
+    pub fn is_maybe_writable_with_reserved_addresses(
+        &self,
+        i: usize,
+        reserved_addresses: Option<&impl AddressSet>,
     ) -> bool {
         super::is_maybe_writable(
             i,
             self.header,
             &self.account_keys,
             &self.instructions,
-            reserved_account_keys,
+            reserved_addresses,
         )
     }
 
@@ -701,6 +748,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_is_maybe_writable() {
         let key0 = Address::new_unique();
         let key1 = Address::new_unique();

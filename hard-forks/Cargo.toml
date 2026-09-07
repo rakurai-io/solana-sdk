@@ -12,7 +12,7 @@
 [package]
 edition = "2021"
 name = "solana-hard-forks"
-version = "3.1.1"
+version = "3.2.0"
 authors = ["Anza Maintainers <maintainers@anza.xyz>"]
 build = false
 autolib = false
@@ -29,6 +29,8 @@ repository = "https://github.com/anza-xyz/solana-sdk"
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
+all-features = true
+rustdoc-args = ["--cfg=docsrs"]
 
 [features]
 frozen-abi = [
@@ -59,7 +61,7 @@ version = "1.0.226"
 optional = true
 
 [dependencies.solana-frozen-abi]
-version = "3.6.0"
+version = "3.8.0"
 features = ["frozen-abi"]
 optional = true
 
@@ -70,7 +72,7 @@ optional = true
 default-features = false
 
 [dependencies.wincode]
-version = "0.5.0"
+version = "0.6.0"
 features = ["derive"]
 optional = true
 default-features = false

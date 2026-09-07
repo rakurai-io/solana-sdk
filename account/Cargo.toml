@@ -12,7 +12,7 @@
 [package]
 edition = "2021"
 name = "solana-account"
-version = "4.3.1"
+version = "4.5.0"
 authors = ["Anza Maintainers <maintainers@anza.xyz>"]
 build = false
 autolib = false
@@ -40,6 +40,7 @@ bincode = [
 ]
 dev-context-only-utils = [
     "bincode",
+    "wincode",
     "dep:qualifier_attr",
 ]
 frozen-abi = [
@@ -88,10 +89,10 @@ optional = true
 version = "3.0.0"
 
 [dependencies.solana-clock]
-version = "3.1.0"
+version = "3.2.0"
 
 [dependencies.solana-frozen-abi]
-version = "3.6.0"
+version = "3.8.0"
 features = ["frozen-abi"]
 optional = true
 
@@ -101,22 +102,22 @@ optional = true
 default-features = false
 
 [dependencies.solana-instruction-error]
-version = "2.3.0"
+version = "2.5.0"
 
 [dependencies.solana-pubkey]
-version = "4.2.0"
+version = "4.3.0"
 default-features = false
 
 [dependencies.solana-sdk-ids]
 version = "3.0.0"
 
 [dependencies.solana-sysvar]
-version = "4.0.0"
+version = "4.2.0"
 features = ["bincode"]
 optional = true
 
 [dependencies.wincode]
-version = "0.5.0"
+version = "0.6.0"
 features = [
     "derive",
     "alloc",
@@ -125,6 +126,9 @@ optional = true
 default-features = false
 
 [dev-dependencies.solana-pubkey]
-version = "4.2.0"
+version = "4.3.0"
 features = ["std"]
 default-features = false
+
+[dev-dependencies.solana-system-interface]
+version = "3.3"
