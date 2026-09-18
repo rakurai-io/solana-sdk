@@ -19,6 +19,9 @@ pub enum RewardType {
     Staking,
     Voting,
     DeactivatedStake,
+    /// The burn associated with the validator admission ticket
+    /// The accompanying RewardInfo will have a negative lamports value
+    VATDebit,
 }
 
 impl fmt::Display for RewardType {
@@ -32,6 +35,7 @@ impl fmt::Display for RewardType {
                 RewardType::Staking => "staking",
                 RewardType::Voting => "voting",
                 RewardType::DeactivatedStake => "deactivated-stake",
+                RewardType::VATDebit => "validator-admission-ticket-debit",
             }
         )
     }
