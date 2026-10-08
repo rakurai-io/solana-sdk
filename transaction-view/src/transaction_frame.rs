@@ -19,7 +19,6 @@ use {
 };
 
 #[derive(Debug, Clone)]
-#[repr(C)]
 pub(crate) struct TransactionFrame {
     /// Signature framing data.
     signature: SignatureFrame,

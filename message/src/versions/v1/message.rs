@@ -40,8 +40,6 @@ pub use self::tests::MessageBuilder;
 use serde_derive::{Deserialize, Serialize};
 #[cfg(feature = "frozen-abi")]
 use solana_frozen_abi_macro::{AbiExample, StableAbi, StableAbiSample};
-#[cfg(feature = "std")]
-use std::collections::HashSet;
 #[cfg(feature = "wincode")]
 use {
     crate::v1::{WireInstructionHeader, FIXED_HEADER_SIZE},
@@ -135,94 +133,6 @@ impl Message {
             account_keys,
             instructions,
         }
-    }
-
-    /// Create a signable transaction message from a `payer` public key,
-    /// `recent_blockhash`, list of `instructions` and a transaction `config`.
-    ///
-    /// # Examples
-    ///
-    /// This example uses the [`solana_rpc_client`], [`solana_account`], and [`anyhow`] crates.
-    ///
-    /// [`solana_rpc_client`]: https://docs.rs/solana-rpc-client
-    /// [`solana_account`]: https://docs.rs/solana-account
-    /// [`anyhow`]: https://docs.rs/anyhow
-    ///
-    /// ```
-    /// # use solana_example_mocks::{
-    /// #     solana_rpc_client,
-    /// #     solana_account,
-    /// #     solana_signer,
-    /// #     solana_keypair,
-    /// # };
-    /// # extern crate alloc;
-    /// # use alloc::borrow::Cow;
-    /// # use solana_account::Account;
-    /// use anyhow::Result;
-    /// use solana_instruction::{AccountMeta, Instruction};
-    /// use solana_keypair::Keypair;
-    /// use solana_message::{VersionedMessage, v1};
-    /// use solana_address::Address;
-    /// use solana_rpc_client::rpc_client::RpcClient;
-    /// use solana_signer::Signer;
-    /// # mod solana_transaction {
-    /// #     pub mod versioned {
-    /// #         use solana_example_mocks::{solana_keypair::Keypair, solana_signer::SignerError};
-    /// #         use solana_message::VersionedMessage;
-    /// #         pub struct VersionedTransaction {
-    /// #             pub message: solana_message::VersionedMessage,
-    /// #         }
-    /// #         impl VersionedTransaction {
-    /// #             pub fn try_new(
-    /// #                 message: VersionedMessage,
-    /// #                 _keypairs: &[&Keypair],
-    /// #             ) -> core::result::Result<Self, solana_example_mocks::solana_signer::SignerError> {
-    /// #                 Ok(VersionedTransaction {
-    /// #                     message,
-    /// #                 })
-    /// #             }
-    /// #         }
-    /// #     }
-    /// # }
-    /// use solana_transaction::versioned::VersionedTransaction;
-    ///
-    /// fn create_v1_tx(
-    ///     client: &RpcClient,
-    ///     instruction: Instruction,
-    ///     payer: &Keypair,
-    /// ) -> Result<VersionedTransaction> {
-    ///     let blockhash = client.get_latest_blockhash()?;
-    ///     let tx = VersionedTransaction::try_new(
-    ///         VersionedMessage::V1(v1::Message::try_compile(
-    ///             &payer.pubkey(),
-    ///             &[instruction],
-    ///             blockhash,
-    ///         )?),
-    ///         &[payer],
-    ///     )?;
-    ///
-    ///     Ok(tx)
-    /// }
-    /// #
-    /// # let client = RpcClient::new(String::new());
-    /// # let payer = Keypair::new();
-    /// # let instruction = Instruction::new_with_bincode(Address::new_unique(), &(), vec![
-    /// #   AccountMeta::new(Address::new_unique(), false),
-    /// # ]);
-    /// # create_v1_tx(&client, instruction, &payer)?;
-    /// # Ok::<(), anyhow::Error>(())
-    /// ```
-    pub fn try_compile(
-        payer: &Address,
-        instructions: &[Instruction],
-        recent_blockhash: Hash,
-    ) -> Result<Self, CompileError> {
-        Self::try_compile_with_config(
-            payer,
-            instructions,
-            recent_blockhash,
-            TransactionConfig::empty(),
-        )
     }
 
     /// Create a signable transaction message from a `payer` public key,
@@ -363,33 +273,6 @@ impl Message {
     /// Returns true if the BPF upgradeable loader is present in the account keys.
     pub fn is_upgradeable_loader_present(&self) -> bool {
         crate::is_upgradeable_loader_present(&self.account_keys)
-    }
-
-    /// Returns `true` if the account at the specified index was requested as
-    /// writable.
-    ///
-    ///
-    /// # Important
-    ///
-    /// Before loading addresses, we can't demote write locks properly so this should
-    /// not be used by the runtime. The `reserved_account_keys` parameter is optional
-    /// to allow clients to approximate writability without requiring fetching the latest
-    /// set of reserved account keys.
-    ///
-    /// Program accounts are demoted from writable to readonly, unless the upgradeable
-    /// loader is present in which case they are left as writable since upgradeable
-    /// programs need to be writable for upgrades.
-    #[cfg(feature = "std")]
-    #[deprecated(
-        since = "4.4.0",
-        note = "Use `is_maybe_writable_with_reserved_addresses` instead"
-    )]
-    pub fn is_maybe_writable(
-        &self,
-        key_index: usize,
-        reserved_account_keys: Option<&HashSet<Address>>,
-    ) -> bool {
-        self.is_maybe_writable_with_reserved_addresses(key_index, reserved_account_keys)
     }
 
     /// Returns `true` if the account at the specified index was requested as
@@ -615,14 +498,6 @@ unsafe impl<C: ConfigCore> SchemaWrite<C> for Message {
     }
 }
 
-/// Serialize the message.
-#[cfg(feature = "wincode")]
-#[inline]
-#[deprecated(since = "4.1.2", note = "use `Message::serialize` instead")]
-pub fn serialize(message: &Message) -> Vec<u8> {
-    wincode::serialize(message).unwrap()
-}
-
 #[cfg(feature = "wincode")]
 unsafe impl<'de, C: Config> SchemaRead<'de, C> for Message {
     type Dst = Message;
@@ -747,7 +622,7 @@ mod tests {
     /// Builder for constructing V1 messages.
     ///
     /// This is used in tests to simplify message construction and validation. For
-    /// client code, users should construct messages using `try_compile` or
+    /// client code, users should construct messages using
     /// `try_compile_with_config`.
     #[derive(Debug, Clone, Default)]
     pub struct MessageBuilder {
@@ -1013,53 +888,6 @@ mod tests {
         assert!(!message.is_writable_index(1)); // readonly signer
         assert!(!message.is_writable_index(2)); // readonly unsigned
         assert!(!message.is_writable_index(999)); // out of bounds
-    }
-
-    #[test]
-    #[allow(deprecated)]
-    fn is_maybe_writable_returns_false_for_readonly_index() {
-        let message = create_test_message();
-        // Index 2 is readonly unsigned
-        assert!(!message.is_writable_index(2));
-        assert!(!message.is_maybe_writable(2, None));
-        // Even with empty reserved set
-        assert!(!message.is_maybe_writable(2, Some(&HashSet::new())));
-    }
-
-    #[test]
-    #[allow(deprecated)]
-    fn is_maybe_writable_demotes_reserved_accounts() {
-        let message = create_test_message();
-        let reserved = HashSet::from([message.account_keys[0]]);
-        // Fee payer is writable by index, but reserved → demoted
-        assert!(message.is_writable_index(0));
-        assert!(!message.is_maybe_writable(0, Some(&reserved)));
-    }
-
-    #[test]
-    #[allow(deprecated)]
-    fn is_maybe_writable_demotes_programs_without_upgradeable_loader() {
-        let message = create_test_message();
-        // Index 1 is writable unsigned, called as program, no upgradeable loader
-        assert!(message.is_writable_index(1));
-        assert!(message.is_key_called_as_program(1));
-        assert!(!message.is_upgradeable_loader_present());
-        assert!(!message.is_maybe_writable(1, None));
-    }
-
-    #[test]
-    #[allow(deprecated)]
-    fn is_maybe_writable_preserves_programs_with_upgradeable_loader() {
-        let mut message = create_test_message();
-        // Add upgradeable loader to account keys
-        message.account_keys.push(bpf_loader_upgradeable::id());
-
-        assert!(message.sanitize().is_ok());
-        assert!(message.is_writable_index(1));
-        assert!(message.is_key_called_as_program(1));
-        assert!(message.is_upgradeable_loader_present());
-        // Program not demoted because upgradeable loader is present
-        assert!(message.is_maybe_writable(1, None));
     }
 
     #[test]

@@ -11,9 +11,9 @@
 
 [package]
 edition = "2024"
-rust-version = "1.89.0"
+rust-version = "1.98.1"
 name = "agave-transaction-view"
-version = "6.0.0"
+version = "7.0.0"
 authors = ["Anza Maintainers <maintainers@anza.xyz>"]
 build = false
 autolib = false
@@ -52,7 +52,7 @@ version = "1.12.1"
 version = "4.6.0"
 
 [dependencies.solana-message]
-version = "4.5.0"
+version = "5.0.0"
 
 [dependencies.solana-packet]
 version = "4.3.0"
@@ -74,22 +74,22 @@ version = "3.5.1"
 default-features = false
 
 [dependencies.solana-svm-transaction]
-version = "5.0.0"
+version = "6.0.0"
 
 [dependencies.solana-transaction]
-version = "4.2.0"
+version = "5.0.0"
 
 [dev-dependencies.criterion]
 version = "0.8.2"
 
 [dev-dependencies.solana-instruction]
-version = "3.5.0"
+version = "4.0.0"
 
 [dev-dependencies.solana-keypair]
-version = "3.1.2"
+version = "4.0.0"
 
 [dev-dependencies.solana-message]
-version = "4.5.0"
+version = "5.0.0"
 
 [dev-dependencies.solana-pubkey]
 version = "4.3.0"
@@ -101,7 +101,7 @@ version = "3.5.1"
 default-features = false
 
 [dev-dependencies.solana-signer]
-version = "3.0.1"
+version = "4.0.0"
 
 [dev-dependencies.solana-system-interface]
 version = "3.3"
@@ -112,11 +112,11 @@ features = [
 ]
 
 [dev-dependencies.solana-transaction]
-version = "4.2.0"
+version = "5.0.0"
 features = ["wincode"]
 
 [dev-dependencies.wincode]
-version = "0.6.0"
+version = "0.6.1"
 features = ["derive"]
 
 [lints.clippy]
