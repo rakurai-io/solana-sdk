@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.89.0"
 name = "solana-message"
-version = "5.0.0"
+version = "6.0.0"
 authors = ["Anza Maintainers <maintainers@anza.xyz>"]
 build = false
 autolib = false
@@ -41,12 +41,12 @@ dev-context-only-utils = [
     "wincode",
 ]
 frozen-abi = [
-    "dep:solana-frozen-abi",
-    "dep:solana-frozen-abi-macro",
     "solana-address/frozen-abi",
+    "solana-frozen-abi-macro/frozen-abi",
+    "solana-frozen-abi/frozen-abi",
     "solana-hash/frozen-abi",
-    "serde",
     "solana-short-vec/frozen-abi",
+    "stable-abi",
 ]
 serde = [
     "dep:serde",
@@ -56,6 +56,13 @@ serde = [
     "solana-address/serde",
     "solana-hash/serde",
     "solana-short-vec/serde",
+]
+stable-abi = [
+    "serde",
+    "solana-address/stable-abi",
+    "solana-frozen-abi-macro/stable-abi",
+    "solana-frozen-abi/stable-abi",
+    "solana-hash/stable-abi",
 ]
 std = []
 wincode = [
@@ -85,20 +92,19 @@ version = "1.0.226"
 optional = true
 
 [dependencies.solana-address]
-version = "2.7.0"
+version = "2.8.0"
 
 [dependencies.solana-frozen-abi]
-version = "3.8.0"
-features = ["frozen-abi"]
+version = "3.9.1"
 optional = true
 
 [dependencies.solana-frozen-abi-macro]
-version = "3.6.0"
+version = "3.7.0"
 optional = true
 default-features = false
 
 [dependencies.solana-hash]
-version = "4.6.0"
+version = "4.7.0"
 features = [
     "decode",
     "sanitize",
@@ -121,7 +127,7 @@ optional = true
 default-features = false
 
 [dependencies.solana-transaction-error]
-version = "4.0.0"
+version = "4.1.0"
 
 [dependencies.wincode]
 version = "0.6.0"
@@ -166,7 +172,7 @@ features = [
 ]
 
 [dev-dependencies.solana-hash]
-version = "4.6.0"
+version = "4.7.0"
 features = ["atomic"]
 default-features = false
 
@@ -176,10 +182,10 @@ features = ["borsh"]
 default-features = false
 
 [dev-dependencies.solana-instruction-error]
-version = "3.0.0"
+version = "3.1.0"
 
 [dev-dependencies.solana-nonce]
-version = "3.3.0"
+version = "3.4.0"
 
 [dev-dependencies.solana-system-interface]
 version = "3.3"

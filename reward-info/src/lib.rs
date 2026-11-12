@@ -11,7 +11,9 @@ use wincode::{SchemaRead, SchemaWrite};
 #[cfg_attr(feature = "frozen-abi", derive(AbiExample, AbiEnumVisitor))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "wincode", derive(SchemaRead, SchemaWrite))]
+#[cfg_attr(test, derive(strum_macros::EnumIter))]
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[non_exhaustive]
 #[repr(C)]
 pub enum RewardType {
     Fee,
@@ -22,6 +24,20 @@ pub enum RewardType {
     /// The burn associated with the validator admission ticket
     /// The accompanying RewardInfo will have a negative lamports value
     VATDebit,
+    /// Block rewards shared by validator to stakers
+    BlockRevenueSharing,
+}
+
+impl RewardType {
+    pub const VARIANTS: &'static [Self] = &[
+        Self::Fee,
+        Self::Rent,
+        Self::Staking,
+        Self::Voting,
+        Self::DeactivatedStake,
+        Self::VATDebit,
+        Self::BlockRevenueSharing,
+    ];
 }
 
 impl fmt::Display for RewardType {
@@ -36,7 +52,20 @@ impl fmt::Display for RewardType {
                 RewardType::Voting => "voting",
                 RewardType::DeactivatedStake => "deactivated-stake",
                 RewardType::VATDebit => "validator-admission-ticket-debit",
+                RewardType::BlockRevenueSharing => "block-revenue-sharing",
             }
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use {super::*, strum::IntoEnumIterator};
+
+    #[test]
+    fn test_variants_exhaustive() {
+        for variant in RewardType::iter() {
+            assert!(RewardType::VARIANTS.contains(&variant));
+        }
     }
 }

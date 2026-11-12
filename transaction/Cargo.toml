@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.89.0"
 name = "solana-transaction"
-version = "5.0.0"
+version = "6.0.0"
 authors = ["Anza Maintainers <maintainers@anza.xyz>"]
 build = false
 autolib = false
@@ -46,11 +46,12 @@ dev-context-only-utils = [
     "solana-hash/atomic",
 ]
 frozen-abi = [
-    "dep:solana-frozen-abi",
-    "dep:solana-frozen-abi-macro",
-    "solana-transaction-error/frozen-abi",
-    "solana-signature/frozen-abi",
+    "solana-frozen-abi-macro/frozen-abi",
+    "solana-frozen-abi/frozen-abi",
     "solana-message/frozen-abi",
+    "solana-signature/frozen-abi",
+    "solana-transaction-error/frozen-abi",
+    "stable-abi",
 ]
 serde = [
     "dep:serde",
@@ -60,6 +61,13 @@ serde = [
     "solana-signature/serde",
     "solana-transaction-error/serde",
     "solana-short-vec/serde",
+]
+stable-abi = [
+    "solana-frozen-abi-macro/stable-abi",
+    "solana-frozen-abi/stable-abi",
+    "solana-message/stable-abi",
+    "solana-signature/stable-abi",
+    "solana-transaction-error/stable-abi",
 ]
 std = ["solana-message/std"]
 verify = [
@@ -88,21 +96,19 @@ version = "1.0.226"
 optional = true
 
 [dependencies.solana-address]
-version = "2.7.0"
+version = "2.8.0"
 
 [dependencies.solana-frozen-abi]
-version = "3.8.0"
-features = ["frozen-abi"]
+version = "3.9.1"
 optional = true
 
 [dependencies.solana-frozen-abi-macro]
-version = "3.6.0"
-features = ["frozen-abi"]
+version = "3.7.0"
 optional = true
 default-features = false
 
 [dependencies.solana-hash]
-version = "4.6.0"
+version = "4.7.0"
 default-features = false
 
 [dependencies.solana-instruction]
@@ -110,10 +116,10 @@ version = "4.0.0"
 default-features = false
 
 [dependencies.solana-instruction-error]
-version = "3.0.0"
+version = "3.1.0"
 
 [dependencies.solana-message]
-version = "5.0.0"
+version = "6.0.0"
 default-features = false
 
 [dependencies.solana-sanitize]
@@ -128,7 +134,7 @@ optional = true
 default-features = false
 
 [dependencies.solana-signature]
-version = "3.5.1"
+version = "3.6.0"
 default-features = false
 
 [dependencies.solana-signer]
@@ -137,7 +143,7 @@ optional = true
 default-features = false
 
 [dependencies.solana-transaction-error]
-version = "4.0.0"
+version = "4.1.0"
 
 [dependencies.wincode]
 version = "0.6.0"
@@ -166,7 +172,7 @@ default-features = false
 version = "1.9"
 
 [dev-dependencies.solana-hash]
-version = "4.6.0"
+version = "4.7.0"
 features = ["atomic"]
 default-features = false
 
@@ -179,16 +185,16 @@ default-features = false
 version = "4.0.0"
 
 [dev-dependencies.solana-nonce]
-version = "3.3.0"
+version = "3.4.0"
 
 [dev-dependencies.solana-packet]
-version = "4.3.0"
+version = "4.4.0"
 
 [dev-dependencies.solana-presigner]
 version = "4.0.0"
 
 [dev-dependencies.solana-pubkey]
-version = "4.3.0"
+version = "4.4.0"
 features = ["rand"]
 default-features = false
 
@@ -201,7 +207,7 @@ version = "3.3"
 features = ["bincode"]
 
 [dev-dependencies.solana-vote-interface]
-version = "7.0.0"
+version = "7.2.0"
 features = ["bincode"]
 
 [dev-dependencies.static_assertions]
@@ -209,3 +215,11 @@ version = "1.1.0"
 
 [dev-dependencies.test-case]
 version = "3.3.1"
+
+[lints.rust.unexpected_cfgs]
+level = "warn"
+priority = 0
+check-cfg = [
+    'cfg(target_os, values("solana"))',
+    'cfg(feature, values("frozen-abi", "no-entrypoint"))',
+]

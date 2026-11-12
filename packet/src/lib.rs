@@ -2,7 +2,7 @@
 #![cfg_attr(feature = "frozen-abi", feature(min_specialization))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
-#[cfg(feature = "frozen-abi")]
+#[cfg(feature = "stable-abi")]
 use solana_frozen_abi_macro::{frozen_abi, AbiExample, StableAbi, StableAbiSample};
 #[cfg(feature = "bincode")]
 use {
@@ -41,6 +41,29 @@ static_assertions::const_assert_eq!(PACKET_DATA_SIZE, 1232);
 ///   8 bytes is the size of the fragment header
 pub const PACKET_DATA_SIZE: usize = 1280 - 40 - 8;
 
+/// Wincode configuration used to decode packet-sized data, see [`PACKET_DATA_WINCODE_CONFIG`].
+///
+/// Exported so generic helpers can spell out the `wincode::SchemaRead` bound, e.g.
+/// `T: for<'de> SchemaRead<'de, PacketDataWincodeConfig, Dst = T>`.
+#[cfg(feature = "wincode")]
+pub type PacketDataWincodeConfig = wincode::config::Configuration<
+    true,
+    { wincode::config::DEFAULT_PREALLOCATION_SIZE_LIMIT },
+    wincode::len::BincodeLen,
+    wincode::int_encoding::LittleEndian,
+    wincode::int_encoding::FixInt,
+    u32,
+    PACKET_DATA_SIZE,
+>;
+
+/// The default wincode configuration with a deserialization size limit of [`PACKET_DATA_SIZE`].
+///
+/// Decoding with `wincode::config::deserialize` reads at most [`PACKET_DATA_SIZE`] bytes, fails
+/// if the value needs more, and accepts trailing bytes after the value.
+#[cfg(feature = "wincode")]
+pub const PACKET_DATA_WINCODE_CONFIG: PacketDataWincodeConfig =
+    wincode::config::Configuration::default().with_deserialization_size_limit::<PACKET_DATA_SIZE>();
+
 #[cfg(feature = "bincode")]
 pub trait Encode {
     fn encode<W: Write>(&self, writer: W) -> Result<()>;
@@ -73,7 +96,7 @@ bitflags! {
     }
 }
 
-#[cfg_attr(feature = "frozen-abi", derive(AbiExample, StableAbi, StableAbiSample))]
+#[cfg_attr(feature = "stable-abi", derive(AbiExample, StableAbi, StableAbiSample))]
 #[cfg_attr(feature = "wincode", derive(SchemaWrite, SchemaRead))]
 #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -102,7 +125,7 @@ impl ::solana_frozen_abi::abi_example::EvenAsOpaque for PacketFlags {
     const TYPE_NAME_MATCHER: &'static str = "::_::InternalBitFlags";
 }
 
-#[cfg(feature = "frozen-abi")]
+#[cfg(feature = "stable-abi")]
 impl ::solana_frozen_abi::stable_abi::StableAbi for PacketFlags {
     fn random_with_context(
         rng: &mut (impl ::solana_frozen_abi::rand::RngCore + ?Sized),
@@ -198,7 +221,7 @@ unsafe impl<'de, const N: usize, C: ConfigCore> SchemaRead<'de, C> for LenPrefix
 // https://docs.rs/serde_with/latest/serde_with/guide/serde_as/index.html#gating-serde_as-on-features
 #[cfg_attr(feature = "serde", cfg_eval::cfg_eval, serde_as)]
 #[cfg_attr(
-    feature = "frozen-abi",
+    feature = "stable-abi",
     derive(AbiExample, StableAbi, StableAbiSample),
     frozen_abi(
         abi_digest = "5MtHLJ3g6mJfsz9KfxnUgjksRUXSETinR9jZZiYuE7fh",
@@ -531,5 +554,23 @@ mod tests {
         let meta = Meta::new(size, addr, port, flags, None);
         assert_eq!(meta.remote_pubkey, Pubkey::default());
         assert_eq!(meta.remote_pubkey(), None);
+    }
+
+    #[cfg(feature = "wincode")]
+    #[test]
+    fn test_packet_data_wincode_config() {
+        let data = [7u8; PACKET_DATA_SIZE + 1];
+        assert!(wincode::config::deserialize::<[u8; PACKET_DATA_SIZE], _>(
+            &data,
+            PACKET_DATA_WINCODE_CONFIG
+        )
+        .is_ok());
+        assert!(
+            wincode::config::deserialize::<[u8; PACKET_DATA_SIZE + 1], _>(
+                &data,
+                PACKET_DATA_WINCODE_CONFIG
+            )
+            .is_err()
+        );
     }
 }

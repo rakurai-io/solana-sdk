@@ -1,7 +1,6 @@
 use {
     crate::{
         result::{Result, TransactionViewError},
-        transaction_data::TransactionData,
         transaction_version::TransactionVersion,
         transaction_view::TransactionView,
     },
@@ -32,7 +31,7 @@ use {
 /// The address source defaults to [`LoadedAddresses`]. Other source types can
 /// be used when [`LoadedAddressesView`] implements `From<&A>` for the source.
 #[derive(Clone)]
-pub struct ResolvedTransactionView<D: TransactionData, A = LoadedAddresses> {
+pub struct ResolvedTransactionView<D: AsRef<[u8]>, A = LoadedAddresses> {
     /// The parsed and sanitized transaction view.
     view: TransactionView<true, D>,
     /// The resolved address lookups.
@@ -43,7 +42,7 @@ pub struct ResolvedTransactionView<D: TransactionData, A = LoadedAddresses> {
     writable_cache: [bool; 256],
 }
 
-impl<D: TransactionData, A> Deref for ResolvedTransactionView<D, A> {
+impl<D: AsRef<[u8]>, A> Deref for ResolvedTransactionView<D, A> {
     type Target = TransactionView<true, D>;
 
     fn deref(&self) -> &Self::Target {
@@ -51,7 +50,7 @@ impl<D: TransactionData, A> Deref for ResolvedTransactionView<D, A> {
     }
 }
 
-impl<D: TransactionData> ResolvedTransactionView<D> {
+impl<D: AsRef<[u8]>> ResolvedTransactionView<D> {
     /// Given a parsed and sanitized transaction view, and a set of resolved
     /// addresses, create a resolved transaction view.
     pub fn try_new<S: BuildHasher>(
@@ -63,7 +62,7 @@ impl<D: TransactionData> ResolvedTransactionView<D> {
     }
 }
 
-impl<D: TransactionData, A> ResolvedTransactionView<D, A>
+impl<D: AsRef<[u8]>, A> ResolvedTransactionView<D, A>
 where
     for<'a> LoadedAddressesView<'a>: From<&'a A>,
 {
@@ -175,20 +174,20 @@ where
     }
 
     /// Returns a borrowed view of the resolved addresses.
-    fn loaded_addresses_view(&self) -> Option<LoadedAddressesView<'_>> {
+    pub fn loaded_addresses_view(&self) -> Option<LoadedAddressesView<'_>> {
         self.resolved_addresses
             .as_ref()
             .map(LoadedAddressesView::from)
     }
 }
 
-impl<D: TransactionData, A> ResolvedTransactionView<D, A> {
+impl<D: AsRef<[u8]>, A> ResolvedTransactionView<D, A> {
     pub fn into_view(self) -> TransactionView<true, D> {
         self.view
     }
 }
 
-impl<D: TransactionData, A> SVMStaticMessage for ResolvedTransactionView<D, A> {
+impl<D: AsRef<[u8]>, A> SVMStaticMessage for ResolvedTransactionView<D, A> {
     fn version(&self) -> solana_transaction::versioned::TransactionVersion {
         self.view.version().into()
     }
@@ -264,7 +263,7 @@ impl<D: TransactionData, A> SVMStaticMessage for ResolvedTransactionView<D, A> {
     }
 }
 
-impl<D: TransactionData, A> SVMMessage for ResolvedTransactionView<D, A>
+impl<D: AsRef<[u8]>, A> SVMMessage for ResolvedTransactionView<D, A>
 where
     for<'a> LoadedAddressesView<'a>: From<&'a A>,
 {
@@ -280,7 +279,7 @@ where
     }
 }
 
-impl<D: TransactionData, A> SVMStaticTransaction for ResolvedTransactionView<D, A> {
+impl<D: AsRef<[u8]>, A> SVMStaticTransaction for ResolvedTransactionView<D, A> {
     fn signature(&self) -> &Signature {
         &self.view.signatures()[0]
     }
@@ -290,7 +289,7 @@ impl<D: TransactionData, A> SVMStaticTransaction for ResolvedTransactionView<D, 
     }
 }
 
-impl<D: TransactionData, A> Debug for ResolvedTransactionView<D, A> {
+impl<D: AsRef<[u8]>, A> Debug for ResolvedTransactionView<D, A> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ResolvedTransactionView")
             .field("view", &self.view)
@@ -302,7 +301,7 @@ impl<D: TransactionData, A> Debug for ResolvedTransactionView<D, A> {
 mod tests {
     use {
         super::*,
-        crate::{sanitize::SanitizeConfig, transaction_view::SanitizedTransactionView},
+        crate::transaction_view::SanitizedTransactionView,
         solana_message::{
             MessageHeader, VersionedMessage,
             compiled_instruction::CompiledInstruction,
@@ -313,16 +312,6 @@ mod tests {
         solana_signature::Signature,
         solana_transaction::versioned::VersionedTransaction,
     };
-
-    // Current protocol values; production callers supply these from agave.
-    fn test_config() -> SanitizeConfig {
-        SanitizeConfig {
-            min_requested_heap_size: 32 * 1024,
-            max_requested_heap_size: 256 * 1024,
-            max_instructions: 64,
-            max_accounts_per_instruction: 255,
-        }
-    }
 
     #[test]
     fn test_expected_loaded_addresses() {
@@ -347,8 +336,7 @@ mod tests {
             }),
         };
         let bytes = wincode::serialize(&transaction).unwrap();
-        let view =
-            SanitizedTransactionView::try_new_sanitized(bytes.as_ref(), &test_config()).unwrap();
+        let view = SanitizedTransactionView::try_new_sanitized(bytes.as_slice()).unwrap();
         let result = ResolvedTransactionView::try_new(
             view,
             None,
@@ -383,8 +371,7 @@ mod tests {
             }),
         };
         let bytes = wincode::serialize(&transaction).unwrap();
-        let view =
-            SanitizedTransactionView::try_new_sanitized(bytes.as_ref(), &test_config()).unwrap();
+        let view = SanitizedTransactionView::try_new_sanitized(bytes.as_slice()).unwrap();
         let result = ResolvedTransactionView::try_new(
             view,
             Some(loaded_addresses),
@@ -424,8 +411,7 @@ mod tests {
             }),
         };
         let bytes = wincode::serialize(&transaction).unwrap();
-        let view =
-            SanitizedTransactionView::try_new_sanitized(bytes.as_ref(), &test_config()).unwrap();
+        let view = SanitizedTransactionView::try_new_sanitized(bytes.as_slice()).unwrap();
         let result = ResolvedTransactionView::try_new(
             view,
             Some(loaded_addresses),
@@ -480,8 +466,7 @@ mod tests {
             };
             let transaction = create_transaction_with_keys(static_keys, &loaded_addresses);
             let bytes = wincode::serialize(&transaction).unwrap();
-            let view = SanitizedTransactionView::try_new_sanitized(bytes.as_ref(), &test_config())
-                .unwrap();
+            let view = SanitizedTransactionView::try_new_sanitized(bytes.as_slice()).unwrap();
             let resolved_view = ResolvedTransactionView::try_new(
                 view,
                 Some(loaded_addresses),
@@ -504,8 +489,7 @@ mod tests {
             };
             let transaction = create_transaction_with_keys(static_keys, &loaded_addresses);
             let bytes = wincode::serialize(&transaction).unwrap();
-            let view = SanitizedTransactionView::try_new_sanitized(bytes.as_ref(), &test_config())
-                .unwrap();
+            let view = SanitizedTransactionView::try_new_sanitized(bytes.as_slice()).unwrap();
             let resolved_view = ResolvedTransactionView::try_new(
                 view,
                 Some(loaded_addresses),
@@ -528,8 +512,7 @@ mod tests {
             };
             let transaction = create_transaction_with_keys(static_keys, &loaded_addresses);
             let bytes = wincode::serialize(&transaction).unwrap();
-            let view = SanitizedTransactionView::try_new_sanitized(bytes.as_ref(), &test_config())
-                .unwrap();
+            let view = SanitizedTransactionView::try_new_sanitized(bytes.as_slice()).unwrap();
             let resolved_view = ResolvedTransactionView::try_new(
                 view,
                 Some(loaded_addresses),
@@ -591,8 +574,7 @@ mod tests {
             let static_keys = vec![key0, key1, key2];
             let transaction = create_transaction_with_static_keys(static_keys, &loaded_addresses);
             let bytes = wincode::serialize(&transaction).unwrap();
-            let view = SanitizedTransactionView::try_new_sanitized(bytes.as_ref(), &test_config())
-                .unwrap();
+            let view = SanitizedTransactionView::try_new_sanitized(bytes.as_slice()).unwrap();
             let resolved_view = ResolvedTransactionView::try_new(
                 view,
                 Some(loaded_addresses.clone()),
@@ -611,8 +593,7 @@ mod tests {
             let static_keys = vec![key0, key1, bpf_loader_upgradeable::ID];
             let transaction = create_transaction_with_static_keys(static_keys, &loaded_addresses);
             let bytes = wincode::serialize(&transaction).unwrap();
-            let view = SanitizedTransactionView::try_new_sanitized(bytes.as_ref(), &test_config())
-                .unwrap();
+            let view = SanitizedTransactionView::try_new_sanitized(bytes.as_slice()).unwrap();
             let resolved_view = ResolvedTransactionView::try_new(
                 view,
                 Some(loaded_addresses.clone()),
@@ -635,8 +616,7 @@ mod tests {
             };
             let transaction = create_transaction_with_static_keys(static_keys, &loaded_addresses);
             let bytes = wincode::serialize(&transaction).unwrap();
-            let view = SanitizedTransactionView::try_new_sanitized(bytes.as_ref(), &test_config())
-                .unwrap();
+            let view = SanitizedTransactionView::try_new_sanitized(bytes.as_slice()).unwrap();
 
             let resolved_view = ResolvedTransactionView::try_new(
                 view,

@@ -12,7 +12,7 @@
 [package]
 edition = "2021"
 name = "solana-hard-forks"
-version = "3.2.0"
+version = "3.3.0"
 authors = ["Anza Maintainers <maintainers@anza.xyz>"]
 build = false
 autolib = false
@@ -34,13 +34,18 @@ rustdoc-args = ["--cfg=docsrs"]
 
 [features]
 frozen-abi = [
-    "dep:solana-frozen-abi",
-    "dep:solana-frozen-abi-macro",
+    "solana-frozen-abi-macro/frozen-abi",
+    "solana-frozen-abi/frozen-abi",
+    "stable-abi",
 ]
 serde = [
     "dep:serde",
     "dep:serde_derive",
     "serde/alloc",
+]
+stable-abi = [
+    "solana-frozen-abi-macro/stable-abi",
+    "solana-frozen-abi/stable-abi",
 ]
 wincode = [
     "dep:wincode",
@@ -61,13 +66,11 @@ version = "1.0.226"
 optional = true
 
 [dependencies.solana-frozen-abi]
-version = "3.8.0"
-features = ["frozen-abi"]
+version = "3.9.0"
 optional = true
 
 [dependencies.solana-frozen-abi-macro]
-version = "3.6.0"
-features = ["frozen-abi"]
+version = "3.7.0"
 optional = true
 default-features = false
 

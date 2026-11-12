@@ -13,7 +13,7 @@
 edition = "2024"
 rust-version = "1.98.1"
 name = "agave-transaction-view"
-version = "7.0.0"
+version = "10.1.0"
 authors = ["Anza Maintainers <maintainers@anza.xyz>"]
 build = false
 autolib = false
@@ -45,20 +45,17 @@ name = "transaction_view"
 path = "benches/transaction_view.rs"
 harness = false
 
-[dependencies.bytes]
-version = "1.12.1"
-
 [dependencies.solana-hash]
-version = "4.6.0"
+version = "4.7.0"
 
 [dependencies.solana-message]
-version = "5.0.0"
+version = "6.0.0"
 
 [dependencies.solana-packet]
 version = "4.3.0"
 
 [dependencies.solana-pubkey]
-version = "4.3.0"
+version = "4.4.0"
 features = ["rand"]
 default-features = false
 
@@ -70,14 +67,17 @@ version = "3.3.0"
 features = ["wincode"]
 
 [dependencies.solana-signature]
-version = "3.5.1"
+version = "3.6.0"
 default-features = false
 
 [dependencies.solana-svm-transaction]
-version = "6.0.0"
+version = "8.0.0"
 
 [dependencies.solana-transaction]
-version = "5.0.0"
+version = "6.0.0"
+
+[dev-dependencies.bytes]
+version = "1.12.1"
 
 [dev-dependencies.criterion]
 version = "0.8.2"
@@ -89,15 +89,15 @@ version = "4.0.0"
 version = "4.0.0"
 
 [dev-dependencies.solana-message]
-version = "5.0.0"
+version = "6.0.0"
 
 [dev-dependencies.solana-pubkey]
-version = "4.3.0"
+version = "4.4.0"
 features = ["rand"]
 default-features = false
 
 [dev-dependencies.solana-signature]
-version = "3.5.1"
+version = "3.6.0"
 default-features = false
 
 [dev-dependencies.solana-signer]
@@ -112,7 +112,7 @@ features = [
 ]
 
 [dev-dependencies.solana-transaction]
-version = "5.0.0"
+version = "6.0.0"
 features = ["wincode"]
 
 [dev-dependencies.wincode]
