@@ -1,3 +1,8 @@
+# 1.9.3
+
+* `rwlock-strategy` feature: `RwLock<()>` as an explicit, opt-in strategy
+  (`ArcSwapAny<Arc<T>, RwLock<()>>`). `DefaultStrategy` is unchanged (#210, #211).
+
 # 1.9.2
 
 * Document RefCnt must not panic (#208).
