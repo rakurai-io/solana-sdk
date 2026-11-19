@@ -499,10 +499,10 @@ pub struct ReplicaSlotLeaderInfo<'a> {
     pub slot: Slot,
     /// The pubkey of the scheduled leader for this slot
     pub leader_pubkey: &'a [u8],
-    /// The pubkey of this validator
-    pub my_pubkey: &'a [u8],
-    /// True when `leader_pubkey == my_pubkey`
-    pub leader: bool,
+    /// True when this validator is the scheduled leader for `slot`
+    /// (computed from the live identity at emit time, so set-identity /
+    /// hot-swap is reflected without baking `my_pubkey` into the payload).
+    pub my_leader_slot: bool,
 }
 
 /// A wrapper to future-proof ReplicaSlotLeaderInfo handling. To make a change to the structure of
