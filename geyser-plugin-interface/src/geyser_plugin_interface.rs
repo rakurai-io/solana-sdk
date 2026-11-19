@@ -492,6 +492,27 @@ pub enum ReplicaContactInfoVersions<'a> {
     V0_0_1(&'a ReplicaContactInfoV0_0_1<'a>),
 }
 
+#[derive(Clone, Debug)]
+#[repr(C)]
+pub struct ReplicaSlotLeaderInfo<'a> {
+    /// The slot whose scheduled leader is being reported
+    pub slot: Slot,
+    /// The pubkey of the scheduled leader for this slot
+    pub leader_pubkey: &'a [u8],
+    /// The pubkey of this validator
+    pub my_pubkey: &'a [u8],
+    /// True when `leader_pubkey == my_pubkey`
+    pub leader: bool,
+}
+
+/// A wrapper to future-proof ReplicaSlotLeaderInfo handling. To make a change to the structure of
+/// ReplicaSlotLeaderInfo, add a new enum variant wrapping a newer version, which will force plugin
+/// implementations to handle the change.
+#[repr(u32)]
+pub enum ReplicaSlotLeaderInfoVersions<'a> {
+    V0_0_1(&'a ReplicaSlotLeaderInfo<'a>),
+}
+
 /// Errors returned by plugin calls
 #[derive(Error, Debug)]
 #[repr(u32)]
@@ -521,6 +542,10 @@ pub enum GeyserPluginError {
     /// Error when updating the transaction.
     #[error("Error updating transaction. Error message: ({msg})")]
     TransactionUpdateError { msg: String },
+
+    /// Error when updating the slot leader
+    #[error("Error updating slot leader. Error message: ({msg})")]
+    SlotLeaderUpdateError { msg: String },
 }
 
 /// The current status of a slot
@@ -696,6 +721,16 @@ pub trait GeyserPlugin: Any + Send + Sync + std::fmt::Debug {
         self.update_slot_status(slot, parent, status)
     }
 
+    /// Called when a bank is created for a slot, before account or transaction
+    /// updates for that bank. Reports the scheduled leader for the slot and
+    /// whether this validator is that leader.
+    ///
+    /// Only called when `slot_leader_notifications_enabled()` returns true.
+    #[allow(unused_variables)]
+    fn notify_slot_leader(&self, info: ReplicaSlotLeaderInfoVersions) -> Result<()> {
+        Ok(())
+    }
+
     /// Called when a transaction is processed in a slot.
     #[deprecated(
         since = "4.3.0",
@@ -864,6 +899,13 @@ pub trait GeyserPlugin: Any + Send + Sync + std::fmt::Debug {
     /// Default is false -- if the plugin is interested in
     /// Alpenglow block footer data, return true.
     fn block_footer_notifications_enabled(&self) -> bool {
+        false
+    }
+
+    /// Check if the plugin is interested in slot leader notifications.
+    /// Default is false -- if the plugin wants `notify_slot_leader` callbacks
+    /// when banks are created, return true.
+    fn slot_leader_notifications_enabled(&self) -> bool {
         false
     }
 
